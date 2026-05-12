@@ -1,0 +1,886 @@
+openapi: 3.1.0
+info:
+  title: HSM-II Company OS API
+  version: 0.1.0
+  summary: Public HTTP contract for Company OS workspaces, tasks, goals, agents, memory, and agent chat.
+  description: >
+    This OpenAPI document is written as a public interface contract. It covers the stable
+    Company OS API endpoints exposed by the HSM console server without exposing the private
+    server implementation.
+servers:
+  - url: https://api.hsm-ii.example
+    description: Hosted Company OS API
+  - url: http://localhost:8765
+    description: Local hsm_console development server
+security:
+  - bearerAuth: []
+tags:
+  - name: Health
+  - name: Companies
+  - name: Goals
+  - name: Tasks
+  - name: Agents
+  - name: Memory
+  - name: Agent Chat
+  - name: Connectors
+paths:
+  /api/company/health:
+    get:
+      tags: [Health]
+      summary: Check Company OS API and database health.
+      security: []
+      operationId: getCompanyHealth
+      responses:
+        "200":
+          description: Health status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+  /api/company/companies:
+    get:
+      tags: [Companies]
+      summary: List companies.
+      operationId: listCompanies
+      responses:
+        "200":
+          description: Company list.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [companies]
+                properties:
+                  companies:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Company"
+    post:
+      tags: [Companies]
+      summary: Create a company workspace.
+      operationId: createCompany
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCompanyRequest"
+      responses:
+        "201":
+          description: Created company.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [company]
+                properties:
+                  company:
+                    $ref: "#/components/schemas/Company"
+                  bootstrap:
+                    type: object
+                    additionalProperties: true
+        "409":
+          $ref: "#/components/responses/Error"
+  /api/company/companies/{company_id}:
+    parameters:
+      - $ref: "#/components/parameters/CompanyId"
+    get:
+      tags: [Companies]
+      summary: Get a company.
+      operationId: getCompany
+      responses:
+        "200":
+          description: Company.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [company]
+                properties:
+                  company:
+                    $ref: "#/components/schemas/Company"
+    patch:
+      tags: [Companies]
+      summary: Update a company.
+      operationId: updateCompany
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateCompanyRequest"
+      responses:
+        "200":
+          description: Updated company.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [company]
+                properties:
+                  company:
+                    $ref: "#/components/schemas/Company"
+    delete:
+      tags: [Companies]
+      summary: Delete a company workspace.
+      operationId: deleteCompany
+      responses:
+        "200":
+          description: Deletion result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericObject"
+  /api/company/companies/{company_id}/dashboard:
+    parameters:
+      - $ref: "#/components/parameters/CompanyId"
+    get:
+      tags: [Companies]
+      summary: Get the Company OS dashboard snapshot.
+      operationId: getCompanyDashboard
+      responses:
+        "200":
+          description: Dashboard summary.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericObject"
+  /api/company/companies/{company_id}/export:
+    parameters:
+      - $ref: "#/components/parameters/CompanyId"
+    get:
+      tags: [Companies]
+      summary: Export a company bundle.
+      operationId: exportCompany
+      responses:
+        "200":
+          description: Company export bundle.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericObject"
+  /api/company/companies/{company_id}/goals:
+    parameters:
+      - $ref: "#/components/parameters/CompanyId"
+    get:
+      tags: [Goals]
+      summary: List goals.
+      operationId: listGoals
+      responses:
+        "200":
+          description: Goal list.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [goals]
+                properties:
+                  goals:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Goal"
+    post:
+      tags: [Goals]
+      summary: Create a goal.
+      operationId: createGoal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGoalRequest"
+      responses:
+        "201":
+          description: Created goal.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [goal]
+                properties:
+                  goal:
+                    $ref: "#/components/schemas/Goal"
+  /api/company/companies/{company_id}/goals/{goal_id}:
+    parameters:
+      - $ref: "#/components/parameters/CompanyId"
+      - $ref: "#/components/parameters/GoalId"
+    patch:
+      tags: [Goals]
+      summary: Update a goal.
+      operationId: updateGoal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateGoalRequest"
+      responses:
+        "200":
+          description: Updated goal.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [goal]
+                properties:
+                  goal:
+                    $ref: "#/components/schemas/Goal"
+  /api/company/companies/{company_id}/tasks:
+    parameters:
+      - $ref: "#/components/parameters/CompanyId"
+    get:
+      tags: [Tasks]
+      summary: List tasks.
+      operationId: listTasks
+      parameters:
+        - name: state
+          in: query
+          schema:
+            type: string
+        - name: agent
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+      responses:
+        "200":
+          description: Task list.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [tasks]
+                properties:
+                  tasks:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Task"
+    post:
+      tags: [Tasks]
+      summary: Create a task.
+      operationId: createTask
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTaskRequest"
+      responses:
+        "201":
+          description: Created task.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [task]
+                properties:
+                  task:
+                    $ref: "#/components/schemas/Task"
+  /api/company/companies/{company_id}/tasks/{task_id}:
+    parameters:
+      - $ref: "#/components/parameters/CompanyId"
+      - $ref: "#/components/parameters/TaskId"
+    delete:
+      tags: [Tasks]
+      summary: Delete a task.
+      operationId: deleteTask
+      responses:
+        "200":
+          description: Deletion result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericObject"
+  /api/company/tasks/{task_id}/state:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    patch:
+      tags: [Tasks]
+      summary: Update task state.
+      operationId: updateTaskState
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateTaskStateRequest"
+      responses:
+        "200":
+          description: Updated task.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [task]
+                properties:
+                  task:
+                    $ref: "#/components/schemas/Task"
+  /api/company/tasks/{task_id}/decision:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    post:
+      tags: [Tasks]
+      summary: Record an operator policy decision for a task.
+      operationId: decideTask
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskDecisionRequest"
+      responses:
+        "200":
+          description: Task after decision.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [task, decision_mode]
+                properties:
+                  task:
+                    $ref: "#/components/schemas/Task"
+                  decision_mode:
+                    type: string
+  /api/company/tasks/{task_id}/requires-human:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    post:
+      tags: [Tasks]
+      summary: Add or remove a task from the human review queue.
+      operationId: setTaskRequiresHuman
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequiresHumanRequest"
+      responses:
+        "200":
+          description: Updated task.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [task]
+                properties:
+                  task:
+                    $ref: "#/components/schemas/Task"
+  /api/company/tasks/{task_id}/events:
+    parameters:
+      - $ref: "#/components/parameters/TaskId"
+    get:
+      tags: [Tasks]
+      summary: List task audit events.
+      operationId: listTaskEvents
+      responses:
+        "200":
+          description: Task event list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericObject"
+  /api/company/companies/{company_id}/agents:
+    parameters:
+      - $ref: "#/components/parameters/CompanyId"
+    get:
+      tags: [Agents]
+      summary: List company agents.
+      operationId: listAgents
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        "200":
+          description: Agent list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericObject"
+    post:
+      tags: [Agents]
+      summary: Create a company agent.
+      operationId: createAgent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAgentRequest"
+      responses:
+        "201":
+          description: Created agent.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericObject"
+  /api/company/companies/{company_id}/agents/{agent_id}:
+    parameters:
+      - $ref: "#/components/parameters/CompanyId"
+      - $ref: "#/components/parameters/AgentId"
+    patch:
+      tags: [Agents]
+      summary: Update a company agent.
+      operationId: updateAgent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAgentRequest"
+      responses:
+        "200":
+          description: Updated agent.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericObject"
+    delete:
+      tags: [Agents]
+      summary: Delete a company agent.
+      operationId: deleteAgent
+      responses:
+        "200":
+          description: Deletion result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericObject"
+  /api/company/companies/{company_id}/memory:
+    parameters:
+      - $ref: "#/components/parameters/CompanyId"
+    get:
+      tags: [Memory]
+      summary: List or search company memory.
+      operationId: listMemory
+      parameters:
+        - name: scope
+          in: query
+          schema:
+            type: string
+        - name: q
+          in: query
+          schema:
+            type: string
+        - name: latest_only
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Memory entries.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericObject"
+    post:
+      tags: [Memory]
+      summary: Create a memory entry.
+      operationId: createMemory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMemoryRequest"
+      responses:
+        "201":
+          description: Created memory entry.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericObject"
+  /api/company/companies/{company_id}/agent-chat:
+    parameters:
+      - $ref: "#/components/parameters/CompanyId"
+    post:
+      tags: [Agent Chat]
+      summary: Send a natural-language message to the Company OS agent interface.
+      operationId: sendAgentChatMessage
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentChatRequest"
+      responses:
+        "200":
+          description: Agent response and optional thread ID.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentChatResponse"
+  /api/company/companies/{company_id}/connectors/catalog:
+    parameters:
+      - $ref: "#/components/parameters/CompanyId"
+    get:
+      tags: [Connectors]
+      summary: Get connector catalog.
+      operationId: getConnectorCatalog
+      responses:
+        "200":
+          description: Connector catalog.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericObject"
+  /api/company/connectors/executor/status:
+    get:
+      tags: [Connectors]
+      summary: Get connector executor status.
+      operationId: getConnectorExecutorStatus
+      responses:
+        "200":
+          description: Executor status.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericObject"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  parameters:
+    CompanyId:
+      name: company_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    GoalId:
+      name: goal_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    TaskId:
+      name: task_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    AgentId:
+      name: agent_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      schema:
+        type: string
+  responses:
+    Error:
+      description: Error response.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+  schemas:
+    GenericObject:
+      type: object
+      additionalProperties: true
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+    HealthResponse:
+      type: object
+      additionalProperties: true
+      properties:
+        ok:
+          type: boolean
+        postgres_configured:
+          type: boolean
+        postgres_ok:
+          type: boolean
+    Company:
+      type: object
+      required: [id, slug, display_name, issue_key_prefix, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        display_name:
+          type: string
+        hsmii_home:
+          type: [string, "null"]
+        issue_key_prefix:
+          type: string
+        context_markdown:
+          type: [string, "null"]
+        webhook_url:
+          type: [string, "null"]
+        created_at:
+          type: string
+    CreateCompanyRequest:
+      type: object
+      required: [slug, display_name]
+      properties:
+        slug:
+          type: string
+        display_name:
+          type: string
+        hsmii_home:
+          type: string
+    UpdateCompanyRequest:
+      type: object
+      properties:
+        display_name:
+          type: string
+        hsmii_home:
+          type: [string, "null"]
+        context_markdown:
+          type: [string, "null"]
+    Goal:
+      type: object
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+          format: uuid
+        company_id:
+          type: string
+          format: uuid
+        parent_goal_id:
+          type: [string, "null"]
+          format: uuid
+        title:
+          type: string
+        description:
+          type: [string, "null"]
+        status:
+          type: string
+        created_at:
+          type: string
+    CreateGoalRequest:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+        parent_goal_id:
+          type: string
+          format: uuid
+        description:
+          type: string
+    UpdateGoalRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+        parent_goal_id:
+          type: [string, "null"]
+          format: uuid
+        sort_order:
+          type: integer
+    Task:
+      type: object
+      additionalProperties: true
+      properties:
+        id:
+          type: string
+          format: uuid
+        company_id:
+          type: string
+          format: uuid
+        primary_goal_id:
+          type: [string, "null"]
+          format: uuid
+        project_id:
+          type: [string, "null"]
+          format: uuid
+        title:
+          type: string
+        specification:
+          type: [string, "null"]
+        state:
+          type: string
+        owner_persona:
+          type: [string, "null"]
+        checked_out_by:
+          type: [string, "null"]
+        priority:
+          type: integer
+        display_number:
+          type: integer
+        requires_human:
+          type: boolean
+        due_at:
+          type: [string, "null"]
+          format: date-time
+        created_at:
+          type: string
+    CreateTaskRequest:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+        specification:
+          type: string
+        workspace_attachment_paths:
+          type: array
+          items:
+            type: string
+        capability_refs:
+          type: array
+          items: {}
+        primary_goal_id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        owner_persona:
+          type: string
+        checked_out_by:
+          type: string
+        parent_task_id:
+          type: string
+          format: uuid
+        spawned_by_rule_id:
+          type: string
+          format: uuid
+        blocked_by_task_id:
+          type: string
+          format: uuid
+        due_at:
+          type: string
+          format: date-time
+        priority:
+          type: integer
+    UpdateTaskStateRequest:
+      type: object
+      properties:
+        state:
+          type: string
+        actor:
+          type: string
+        reason:
+          type: string
+    TaskDecisionRequest:
+      type: object
+      required: [decision_mode]
+      properties:
+        decision_mode:
+          type: string
+          enum: [auto, admin_required, blocked]
+        actor:
+          type: string
+        reason:
+          type: string
+    RequiresHumanRequest:
+      type: object
+      required: [requires_human]
+      properties:
+        requires_human:
+          type: boolean
+        actor:
+          type: string
+        reason:
+          type: string
+    CreateAgentRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        role:
+          type: string
+        title:
+          type: string
+        capabilities:
+          type: string
+        reports_to:
+          type: string
+          format: uuid
+        adapter_type:
+          type: string
+        adapter_config:
+          type: object
+          additionalProperties: true
+        budget_monthly_cents:
+          type: integer
+        briefing:
+          type: string
+        sort_order:
+          type: integer
+    UpdateAgentRequest:
+      type: object
+      additionalProperties: true
+    CreateMemoryRequest:
+      type: object
+      required: [title, body]
+      properties:
+        scope:
+          type: string
+          default: shared
+        company_agent_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        body:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        source:
+          type: string
+        kind:
+          type: string
+    AgentChatRequest:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+        actor:
+          type: string
+        thread_id:
+          type: string
+          format: uuid
+    AgentChatResponse:
+      type: object
+      additionalProperties: true
+      properties:
+        response:
+          type: string
+        message:
+          type: string
+        thread_id:
+          type: string
+          format: uuid
+
