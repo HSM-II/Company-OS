@@ -1,15 +1,65 @@
-# Company OS SDK
+# Company OS
 
-Public SDK surface for the HSM-II Company OS API.
+**Company OS gives AI agents a shared operating layer for companies: workspaces, tasks, goals, memory, agents, approvals, and connectors through one API.**
 
-This repository is intentionally small: it exposes the HTTP interface, client helpers, and examples without shipping the private server implementation or hosted operations code.
+This public repository contains the Company OS interface layer: OpenAPI contract, Python SDK, TypeScript SDK, and examples. It does not include the private server implementation, hosted operations, secrets, proprietary company packs, or internal deployment code.
 
-## Contents
+## Why It Exists
 
-- `openapi/company-os.openapi.yaml` - hand-written OpenAPI 3.1 spec for the public Company OS API surface.
-- `python/` - dependency-light Python client.
-- `typescript/` - dependency-light TypeScript client for Node 18+ and modern browsers.
-- `examples/` - minimal Python and TypeScript usage examples.
+Most AI agent stacks still behave like chat wrappers: they produce useful output, but the work is hard to assign, audit, continue, govern, or connect to a real company workflow.
+
+Company OS turns agent work into an operational graph:
+
+- Companies own goals, tasks, memory, agents, governance events, and integrations.
+- Agents can be assigned work with context, state, owners, approvals, and audit trails.
+- Operators keep control through bearer-token access, hosted API permissions, and human review flows.
+
+## What You Can Build
+
+- Agent workspaces that create and track real tasks instead of losing work in chat history.
+- Shared memory and context systems for long-running company operations.
+- Human-in-the-loop review queues for approvals, blocked work, and escalations.
+- External tools and product integrations through a stable Company OS API.
+- Dashboards, automations, and agent UIs on top of one public contract.
+
+## Quick Demo Flow
+
+```python
+from company_os_sdk import CompanyOSClient
+
+client = CompanyOSClient.from_env()
+
+company = client.create_company(slug="acme", display_name="Acme")
+company_id = company["company"]["id"]
+
+goal = client.create_goal(company_id, title="Launch customer onboarding v1")
+task = client.create_task(
+    company_id,
+    title="Draft onboarding checklist",
+    specification="Create a concise checklist for first-time customers.",
+    primary_goal_id=goal["goal"]["id"],
+    priority=10,
+)
+
+reply = client.agent_chat(
+    company_id,
+    message="What is the highest-priority work and who should handle it?",
+    actor="operator",
+)
+
+print(task["task"]["id"])
+print(reply)
+```
+
+## Repository Contents
+
+- [OpenAPI spec](openapi/company-os.openapi.yaml): public Company OS API contract.
+- [Python SDK](python/): dependency-light client for scripts, notebooks, and backend jobs.
+- [TypeScript SDK](typescript/): client for Node 18+, modern browsers, and app frontends.
+- [Examples](examples/): minimal quickstarts.
+- [Product deck narrative](docs/product-deck.md): how Company OS works and why it matters.
+- [Demo script](docs/demo-script.md): 20-30 second demo flow for a pitch or walkthrough.
+- [Access model](docs/access-model.md): what is public, what stays private, and how hosted access is controlled.
 
 ## Authentication
 
@@ -21,6 +71,8 @@ export HSM_COMPANY_API_TOKEN="..."
 ```
 
 `GET /api/company/health` is intentionally unauthenticated so operators can check deployment health.
+
+The hosted API URL and external token issuance flow are controlled by HSM-II. Replace the placeholder URL with the live API endpoint when access is issued.
 
 ## Python
 
@@ -56,7 +108,18 @@ const health = await client.health();
 console.log(health);
 ```
 
+## Product Story
+
+The short version:
+
+1. AI work is moving from chat into operations.
+2. Operations need memory, task state, governance, tools, and accountability.
+3. Company OS gives agents and operators one shared API for that work.
+4. HSM-II controls hosted access; this repo exposes the public interface.
+
+For the full pitch-style flow, read [docs/product-deck.md](docs/product-deck.md).
+
 ## Versioning
 
-The SDK follows the API contract in `openapi/company-os.openapi.yaml`. Until the hosted API is declared stable, prefer pinning SDK versions and treating newly added endpoints as additive.
+The SDK follows the API contract in [openapi/company-os.openapi.yaml](openapi/company-os.openapi.yaml). Until the hosted API is declared stable, pin SDK versions and treat newly added endpoints as additive.
 
