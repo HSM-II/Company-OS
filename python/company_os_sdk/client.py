@@ -175,7 +175,7 @@ class CompanyOSClient:
         return self.request(
             "POST",
             f"/api/company/companies/{company_id}/memory",
-            json_body={"title": title, "body": body, **fields},
+            json_body={"scope": "shared", "title": title, "body": body, **fields},
         )
 
     def agent_chat(
@@ -202,4 +202,3 @@ class CompanyOSClient:
             if clean:
                 url = f"{url}?{urllib.parse.urlencode(clean, doseq=True)}"
         return url
-

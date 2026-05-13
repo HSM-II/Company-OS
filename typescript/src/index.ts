@@ -161,7 +161,9 @@ export class CompanyOSClient {
     companyId: string,
     body: { title: string; body: string } & Record<string, unknown>,
   ): Promise<T> {
-    return this.request("POST", `/api/company/companies/${companyId}/memory`, { body });
+    return this.request("POST", `/api/company/companies/${companyId}/memory`, {
+      body: { scope: "shared", ...body },
+    });
   }
 
   agentChat<T = JsonObject>(
@@ -191,4 +193,3 @@ function env(name: string): string | undefined {
   };
   return maybeProcess.process?.env?.[name];
 }
-
