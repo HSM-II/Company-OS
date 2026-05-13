@@ -47,6 +47,10 @@ Assign tasks to agents or operators with rich specifications, attachments, goals
 
 Developers use the OpenAPI spec, Python SDK, and TypeScript SDK. HSM-II keeps the implementation private and controls hosted access with tokens, rate limits, and revocation.
 
+### Managed Hosted Runtime
+
+HSM-II operates the backend control plane: quality gates, secrets, tenant isolation, abuse prevention, billing, updates, and private company packs. Developers integrate through the SDK instead of running migrations, worker infrastructure, model routing, connector credentials, and operational safeguards themselves.
+
 ## 5. Demo
 
 Show the core loop in 20-30 seconds:
@@ -100,6 +104,8 @@ Simple hosted model:
 - Optional usage-based pricing for agent runs, memory retrieval, and connector operations.
 
 The exact public pricing is controlled by HSM-II and can evolve without changing the SDK contract.
+
+Position self-hosting carefully: users cannot self-host from the SDK repo alone. Private or self-hosted deployment is an enterprise/server distribution decision, separate from the public SDK.
 
 ## 9. Traction
 
@@ -164,4 +170,3 @@ Developers can inspect the interface today:
 - TypeScript SDK: `typescript/`
 
 Next step: request hosted API access, run the 30-second demo, and connect one real company workflow.
-

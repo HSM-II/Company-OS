@@ -4,6 +4,8 @@
 
 This public repository contains the Company OS interface layer: OpenAPI contract, Python SDK, TypeScript SDK, and examples. It does not include the private server implementation, hosted operations, secrets, proprietary company packs, or internal deployment code.
 
+The intended public path is **SDK -> hosted Company OS API**. HSM-II runs the control plane, issues API credentials, and manages the operational boundary around models, tools, tenants, billing, updates, and private packs. A self-hosted server is a separate deployment product, not something this SDK repo provides by itself.
+
 ## Why It Exists
 
 Most AI agent stacks still behave like chat wrappers: they produce useful output, but the work is hard to assign, audit, continue, govern, or connect to a real company workflow.
@@ -21,6 +23,20 @@ Company OS turns agent work into an operational graph:
 - Human-in-the-loop review queues for approvals, blocked work, and escalations.
 - External tools and product integrations through a stable Company OS API.
 - Dashboards, automations, and agent UIs on top of one public contract.
+
+## What HSM-II Hosts For You
+
+Using the hosted API means your application can call Company OS without operating the backend runtime. HSM-II is responsible for:
+
+- Quality gates around agent runs, task state, approvals, and operational audit.
+- Secret handling for hosted connectors and model/provider credentials.
+- Tenant isolation so each company workspace has separated state and access.
+- Abuse controls such as bearer-token access, rate limits, revocation, and usage quotas.
+- Billing and usage reporting for API calls, agent runs, memory retrieval, and connector operations.
+- Platform updates, schema migrations, and compatibility with the public SDK contract.
+- Private company packs, internal agents, and curated integrations that are not distributed in this public repo.
+
+You still build your own app, dashboard, agent UI, or automation on top of the API. HSM-II operates the shared control plane behind it.
 
 ## Quick Demo Flow
 
@@ -60,6 +76,8 @@ print(reply)
 - [Product deck narrative](docs/product-deck.md): how Company OS works and why it matters.
 - [Demo script](docs/demo-script.md): 20-30 second demo flow for a pitch or walkthrough.
 - [Access model](docs/access-model.md): what is public, what stays private, and how hosted access is controlled.
+- [Managed hosting model](docs/managed-hosting.md): what HSM-II operates for hosted SDK/API users.
+- [Hosted scale architecture](docs/hosted-scale-architecture.md): model gateway, quota, workers, usage ledger, and billing architecture.
 
 ## Authentication
 
@@ -122,4 +140,3 @@ For the full pitch-style flow, read [docs/product-deck.md](docs/product-deck.md)
 ## Versioning
 
 The SDK follows the API contract in [openapi/company-os.openapi.yaml](openapi/company-os.openapi.yaml). Until the hosted API is declared stable, pin SDK versions and treat newly added endpoints as additive.
-
