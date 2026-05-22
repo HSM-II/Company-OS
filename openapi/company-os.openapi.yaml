@@ -22,6 +22,9 @@ tags:
   - name: Agents
   - name: Memory
   - name: Agent Chat
+  - name: Board
+  - name: Runtime Daemons
+  - name: Dead Star
   - name: Connectors
 paths:
   /api/company/health:
@@ -145,6 +148,20 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GenericObject"
+  /api/company/companies/{company_id}/api-catalog:
+    parameters:
+      - $ref: "#/components/parameters/CompanyId"
+    get:
+      tags: [Companies]
+      summary: Discover the Company OS HTTP API surface for a workspace.
+      operationId: getCompanyApiCatalog
+      responses:
+        "200":
+          description: API catalog and interface model.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericObject"
   /api/company/companies/{company_id}/export:
     parameters:
       - $ref: "#/components/parameters/CompanyId"
@@ -155,6 +172,48 @@ paths:
       responses:
         "200":
           description: Company export bundle.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericObject"
+  /api/company/companies/{company_id}/board:
+    parameters:
+      - $ref: "#/components/parameters/CompanyId"
+    get:
+      tags: [Board]
+      summary: Get Statica-style board state for a workspace.
+      operationId: getBoard
+      responses:
+        "200":
+          description: Board columns, task cards, and agent roster.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericObject"
+  /api/company/companies/{company_id}/board/columns:
+    parameters:
+      - $ref: "#/components/parameters/CompanyId"
+    get:
+      tags: [Board]
+      summary: Get board column definitions.
+      operationId: getBoardColumns
+      responses:
+        "200":
+          description: Board column definitions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericObject"
+  /api/company/companies/{company_id}/board/presence:
+    parameters:
+      - $ref: "#/components/parameters/CompanyId"
+    get:
+      tags: [Board]
+      summary: Get live agent board presence.
+      operationId: getBoardPresence
+      responses:
+        "200":
+          description: Agent presence and current task assignments.
           content:
             application/json:
               schema:
@@ -525,6 +584,212 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AgentChatResponse"
+  /api/company/companies/{company_id}/runtime/daemons:
+    parameters:
+      - $ref: "#/components/parameters/CompanyId"
+    get:
+      tags: [Runtime Daemons]
+      summary: List registered local execution daemons for a workspace.
+      operationId: listRuntimeDaemons
+      responses:
+        "200":
+          description: Runtime daemon list with computed liveness.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericObject"
+  /api/company/companies/{company_id}/runtime/daemons/register:
+    parameters:
+      - $ref: "#/components/parameters/CompanyId"
+    post:
+      tags: [Runtime Daemons]
+      summary: Register or refresh a local execution daemon.
+      operationId: registerRuntimeDaemon
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRuntimeDaemonRequest"
+      responses:
+        "200":
+          description: Registered daemon.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericObject"
+  /api/company/companies/{company_id}/runtime/daemons/{device_id}/heartbeat:
+    parameters:
+      - $ref: "#/components/parameters/CompanyId"
+      - $ref: "#/components/parameters/DeviceId"
+    post:
+      tags: [Runtime Daemons]
+      summary: Heartbeat a registered local execution daemon.
+      operationId: heartbeatRuntimeDaemon
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HeartbeatRuntimeDaemonRequest"
+      responses:
+        "200":
+          description: Heartbeat accepted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericObject"
+  /api/company/companies/{company_id}/runtime/daemons/{device_id}/deregister:
+    parameters:
+      - $ref: "#/components/parameters/CompanyId"
+      - $ref: "#/components/parameters/DeviceId"
+    post:
+      tags: [Runtime Daemons]
+      summary: Deregister a local execution daemon.
+      operationId: deregisterRuntimeDaemon
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeregisterRuntimeDaemonRequest"
+      responses:
+        "200":
+          description: Deregistration result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericObject"
+  /api/company/companies/{company_id}/dead-star/contributors:
+    parameters:
+      - $ref: "#/components/parameters/CompanyId"
+    get:
+      tags: [Dead Star]
+      summary: List preserved contributors for the Dead Star ledger.
+      operationId: listDeadStarContributors
+      responses:
+        "200":
+          description: Contributor list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericObject"
+    post:
+      tags: [Dead Star]
+      summary: Preserve a contributor's judgment profile.
+      operationId: createDeadStarContributor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDeadStarContributorRequest"
+      responses:
+        "200":
+          description: Created contributor.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericObject"
+  /api/company/companies/{company_id}/dead-star/contributors/{contributor_id}:
+    parameters:
+      - $ref: "#/components/parameters/CompanyId"
+      - $ref: "#/components/parameters/ContributorId"
+    patch:
+      tags: [Dead Star]
+      summary: Update a preserved contributor.
+      operationId: updateDeadStarContributor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Updated contributor.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericObject"
+  /api/company/companies/{company_id}/dead-star/contributors/{contributor_id}/review:
+    parameters:
+      - $ref: "#/components/parameters/CompanyId"
+      - $ref: "#/components/parameters/ContributorId"
+    post:
+      tags: [Dead Star]
+      summary: Review a task using preserved contributor judgment.
+      operationId: reviewWithDeadStarContributor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeadStarReviewRequest"
+      responses:
+        "200":
+          description: Review verdict.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericObject"
+  /api/company/companies/{company_id}/dead-star/contributors/{contributor_id}/accrue:
+    parameters:
+      - $ref: "#/components/parameters/CompanyId"
+      - $ref: "#/components/parameters/ContributorId"
+    post:
+      tags: [Dead Star]
+      summary: Accrue a royalty ledger event for a preserved contributor.
+      operationId: accrueDeadStarRoyalty
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeadStarAccrualRequest"
+      responses:
+        "200":
+          description: Royalty event.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericObject"
+  /api/company/companies/{company_id}/dead-star/royalty-ledger:
+    parameters:
+      - $ref: "#/components/parameters/CompanyId"
+    get:
+      tags: [Dead Star]
+      summary: List Dead Star royalty ledger events.
+      operationId: listDeadStarRoyaltyLedger
+      responses:
+        "200":
+          description: Royalty ledger.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericObject"
+  /api/company/dead-star/royalty-events/{event_id}/settle:
+    parameters:
+      - $ref: "#/components/parameters/EventId"
+    post:
+      tags: [Dead Star]
+      summary: Mark a Dead Star royalty event settled.
+      operationId: settleDeadStarRoyaltyEvent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Settlement result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenericObject"
   /api/company/companies/{company_id}/connectors/catalog:
     parameters:
       - $ref: "#/components/parameters/CompanyId"
@@ -580,6 +845,26 @@ components:
         format: uuid
     AgentId:
       name: agent_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ContributorId:
+      name: contributor_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    DeviceId:
+      name: device_id
+      in: path
+      required: true
+      schema:
+        type: string
+    EventId:
+      name: event_id
       in: path
       required: true
       schema:
@@ -883,4 +1168,95 @@ components:
         thread_id:
           type: string
           format: uuid
-
+    RegisterRuntimeDaemonRequest:
+      type: object
+      required: [device_id, agent_ref]
+      properties:
+        device_id:
+          type: string
+        agent_ref:
+          type: string
+        host:
+          type: string
+        platform:
+          type: string
+        detected_clis:
+          type: array
+          items:
+            type: string
+        poll_interval_secs:
+          type: integer
+          minimum: 1
+        daemon_version:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+        execution_backend:
+          type: string
+        execution_endpoint:
+          type: string
+    HeartbeatRuntimeDaemonRequest:
+      type: object
+      required: [agent_ref]
+      properties:
+        agent_ref:
+          type: string
+        status:
+          type: string
+          enum: [online, idle, offline, error]
+        metadata:
+          type: object
+          additionalProperties: true
+    DeregisterRuntimeDaemonRequest:
+      type: object
+      required: [agent_ref]
+      properties:
+        agent_ref:
+          type: string
+    CreateDeadStarContributorRequest:
+      type: object
+      required: [contributor_name]
+      properties:
+        contributor_name:
+          type: string
+        role:
+          type: string
+        departed_at:
+          type: string
+          format: date-time
+        judgment_corpus:
+          type: string
+        beneficiary_meta:
+          type: object
+          additionalProperties: true
+        royalty_rate_bps:
+          type: integer
+          minimum: 0
+          maximum: 10000
+    DeadStarReviewRequest:
+      type: object
+      required: [task_id]
+      properties:
+        task_id:
+          type: string
+          format: uuid
+        work_summary:
+          type: string
+    DeadStarAccrualRequest:
+      type: object
+      required: [event_kind]
+      properties:
+        task_id:
+          type: string
+          format: uuid
+        event_kind:
+          type: string
+          enum: [review, reference, manual]
+        verdict:
+          type: string
+        amount_usd:
+          type: number
+        settlement_meta:
+          type: object
+          additionalProperties: true

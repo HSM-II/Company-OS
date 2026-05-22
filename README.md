@@ -70,6 +70,7 @@ print(reply)
 ## Repository Contents
 
 - [OpenAPI spec](openapi/company-os.openapi.yaml): public Company OS API contract.
+- [Important endpoint contract](contract/important-endpoints.txt): public routes that must stay covered by OpenAPI and SDK clients.
 - [Python SDK](python/): dependency-light client for scripts, notebooks, and backend jobs.
 - [TypeScript SDK](typescript/): client for Node 18+, modern browsers, and app frontends.
 - [Examples](examples/): minimal quickstarts.
@@ -140,3 +141,24 @@ For the full pitch-style flow, read [docs/product-deck.md](docs/product-deck.md)
 ## Versioning
 
 The SDK follows the API contract in [openapi/company-os.openapi.yaml](openapi/company-os.openapi.yaml). Until the hosted API is declared stable, pin SDK versions and treat newly added endpoints as additive.
+
+## Contract Checks
+
+Run the no-dependency contract check before changing public endpoints:
+
+```bash
+python scripts/check_contract.py
+```
+
+Run both SDK examples against the local fixture server:
+
+```bash
+bash scripts/run_example_smoke.sh
+```
+
+Publication is intentionally manual until hosted API compatibility is declared stable:
+
+```bash
+cd python && python -m build
+cd ../typescript && npm publish --access public
+```

@@ -14,6 +14,47 @@ export type RequestOptions = {
   headers?: Record<string, string>;
 };
 
+export type RuntimeDaemonRegistration = {
+  device_id: string;
+  agent_ref: string;
+  host?: string;
+  platform?: string;
+  detected_clis?: string[];
+  poll_interval_secs?: number;
+  daemon_version?: string;
+  metadata?: JsonObject;
+  execution_backend?: string;
+  execution_endpoint?: string;
+};
+
+export type RuntimeDaemonHeartbeat = {
+  agent_ref: string;
+  status?: "online" | "idle" | "offline" | "error";
+  metadata?: JsonObject;
+};
+
+export type DeadStarContributorCreate = {
+  contributor_name: string;
+  role?: string;
+  departed_at?: string;
+  judgment_corpus?: string;
+  beneficiary_meta?: JsonObject;
+  royalty_rate_bps?: number;
+};
+
+export type DeadStarReviewRequest = {
+  task_id: string;
+  work_summary?: string;
+};
+
+export type DeadStarAccrualRequest = {
+  task_id?: string;
+  event_kind: "review" | "reference" | "manual";
+  verdict?: string;
+  amount_usd?: number;
+  settlement_meta?: JsonObject;
+};
+
 export class CompanyOSAPIError extends Error {
   readonly status: number;
   readonly body: unknown;
@@ -91,6 +132,10 @@ export class CompanyOSClient {
 
   dashboard<T = JsonObject>(companyId: string): Promise<T> {
     return this.request("GET", `/api/company/companies/${companyId}/dashboard`);
+  }
+
+  apiCatalog<T = JsonObject>(companyId: string): Promise<T> {
+    return this.request("GET", `/api/company/companies/${companyId}/api-catalog`);
   }
 
   listGoals<T = JsonObject>(companyId: string): Promise<T> {
@@ -171,6 +216,91 @@ export class CompanyOSClient {
     body: { message: string; actor?: string; thread_id?: string },
   ): Promise<T> {
     return this.request("POST", `/api/company/companies/${companyId}/agent-chat`, { body });
+  }
+
+  board<T = JsonObject>(companyId: string): Promise<T> {
+    return this.request("GET", `/api/company/companies/${companyId}/board`);
+  }
+
+  boardColumns<T = JsonObject>(companyId: string): Promise<T> {
+    return this.request("GET", `/api/company/companies/${companyId}/board/columns`);
+  }
+
+  boardPresence<T = JsonObject>(companyId: string): Promise<T> {
+    return this.request("GET", `/api/company/companies/${companyId}/board/presence`);
+  }
+
+  listRuntimeDaemons<T = JsonObject>(companyId: string): Promise<T> {
+    return this.request("GET", `/api/company/companies/${companyId}/runtime/daemons`);
+  }
+
+  registerRuntimeDaemon<T = JsonObject>(
+    companyId: string,
+    body: RuntimeDaemonRegistration,
+  ): Promise<T> {
+    return this.request("POST", `/api/company/companies/${companyId}/runtime/daemons/register`, { body });
+  }
+
+  heartbeatRuntimeDaemon<T = JsonObject>(
+    companyId: string,
+    deviceId: string,
+    body: RuntimeDaemonHeartbeat,
+  ): Promise<T> {
+    return this.request("POST", `/api/company/companies/${companyId}/runtime/daemons/${deviceId}/heartbeat`, { body });
+  }
+
+  deregisterRuntimeDaemon<T = JsonObject>(
+    companyId: string,
+    deviceId: string,
+    body: { agent_ref: string },
+  ): Promise<T> {
+    return this.request("POST", `/api/company/companies/${companyId}/runtime/daemons/${deviceId}/deregister`, { body });
+  }
+
+  listDeadStarContributors<T = JsonObject>(companyId: string): Promise<T> {
+    return this.request("GET", `/api/company/companies/${companyId}/dead-star/contributors`);
+  }
+
+  createDeadStarContributor<T = JsonObject>(
+    companyId: string,
+    body: DeadStarContributorCreate,
+  ): Promise<T> {
+    return this.request("POST", `/api/company/companies/${companyId}/dead-star/contributors`, { body });
+  }
+
+  updateDeadStarContributor<T = JsonObject>(
+    companyId: string,
+    contributorId: string,
+    body: Record<string, unknown>,
+  ): Promise<T> {
+    return this.request("PATCH", `/api/company/companies/${companyId}/dead-star/contributors/${contributorId}`, { body });
+  }
+
+  reviewWithDeadStarContributor<T = JsonObject>(
+    companyId: string,
+    contributorId: string,
+    body: DeadStarReviewRequest,
+  ): Promise<T> {
+    return this.request("POST", `/api/company/companies/${companyId}/dead-star/contributors/${contributorId}/review`, { body });
+  }
+
+  accrueDeadStarRoyalty<T = JsonObject>(
+    companyId: string,
+    contributorId: string,
+    body: DeadStarAccrualRequest,
+  ): Promise<T> {
+    return this.request("POST", `/api/company/companies/${companyId}/dead-star/contributors/${contributorId}/accrue`, { body });
+  }
+
+  listDeadStarRoyaltyLedger<T = JsonObject>(companyId: string): Promise<T> {
+    return this.request("GET", `/api/company/companies/${companyId}/dead-star/royalty-ledger`);
+  }
+
+  settleDeadStarRoyaltyEvent<T = JsonObject>(
+    eventId: string,
+    body: Record<string, unknown>,
+  ): Promise<T> {
+    return this.request("POST", `/api/company/dead-star/royalty-events/${eventId}/settle`, { body });
   }
 
   private url(path: string, query?: Record<string, unknown>): string {

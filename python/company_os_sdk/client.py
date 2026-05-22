@@ -99,6 +99,9 @@ class CompanyOSClient:
     def dashboard(self, company_id: str) -> JsonObject:
         return self.request("GET", f"/api/company/companies/{company_id}/dashboard")
 
+    def api_catalog(self, company_id: str) -> JsonObject:
+        return self.request("GET", f"/api/company/companies/{company_id}/api-catalog")
+
     def list_goals(self, company_id: str) -> JsonObject:
         return self.request("GET", f"/api/company/companies/{company_id}/goals")
 
@@ -188,6 +191,80 @@ class CompanyOSClient:
     ) -> JsonObject:
         body = {k: v for k, v in {"message": message, "actor": actor, "thread_id": thread_id}.items() if v is not None}
         return self.request("POST", f"/api/company/companies/{company_id}/agent-chat", json_body=body)
+
+    def board(self, company_id: str) -> JsonObject:
+        return self.request("GET", f"/api/company/companies/{company_id}/board")
+
+    def board_columns(self, company_id: str) -> JsonObject:
+        return self.request("GET", f"/api/company/companies/{company_id}/board/columns")
+
+    def board_presence(self, company_id: str) -> JsonObject:
+        return self.request("GET", f"/api/company/companies/{company_id}/board/presence")
+
+    def list_runtime_daemons(self, company_id: str) -> JsonObject:
+        return self.request("GET", f"/api/company/companies/{company_id}/runtime/daemons")
+
+    def register_runtime_daemon(self, company_id: str, **fields: Any) -> JsonObject:
+        return self.request(
+            "POST",
+            f"/api/company/companies/{company_id}/runtime/daemons/register",
+            json_body=fields,
+        )
+
+    def heartbeat_runtime_daemon(self, company_id: str, device_id: str, **fields: Any) -> JsonObject:
+        return self.request(
+            "POST",
+            f"/api/company/companies/{company_id}/runtime/daemons/{device_id}/heartbeat",
+            json_body=fields,
+        )
+
+    def deregister_runtime_daemon(self, company_id: str, device_id: str, *, agent_ref: str) -> JsonObject:
+        return self.request(
+            "POST",
+            f"/api/company/companies/{company_id}/runtime/daemons/{device_id}/deregister",
+            json_body={"agent_ref": agent_ref},
+        )
+
+    def list_dead_star_contributors(self, company_id: str) -> JsonObject:
+        return self.request("GET", f"/api/company/companies/{company_id}/dead-star/contributors")
+
+    def create_dead_star_contributor(self, company_id: str, *, contributor_name: str, **fields: Any) -> JsonObject:
+        return self.request(
+            "POST",
+            f"/api/company/companies/{company_id}/dead-star/contributors",
+            json_body={"contributor_name": contributor_name, **fields},
+        )
+
+    def update_dead_star_contributor(self, company_id: str, contributor_id: str, **fields: Any) -> JsonObject:
+        return self.request(
+            "PATCH",
+            f"/api/company/companies/{company_id}/dead-star/contributors/{contributor_id}",
+            json_body=fields,
+        )
+
+    def review_with_dead_star_contributor(self, company_id: str, contributor_id: str, **fields: Any) -> JsonObject:
+        return self.request(
+            "POST",
+            f"/api/company/companies/{company_id}/dead-star/contributors/{contributor_id}/review",
+            json_body=fields,
+        )
+
+    def accrue_dead_star_royalty(self, company_id: str, contributor_id: str, **fields: Any) -> JsonObject:
+        return self.request(
+            "POST",
+            f"/api/company/companies/{company_id}/dead-star/contributors/{contributor_id}/accrue",
+            json_body=fields,
+        )
+
+    def list_dead_star_royalty_ledger(self, company_id: str) -> JsonObject:
+        return self.request("GET", f"/api/company/companies/{company_id}/dead-star/royalty-ledger")
+
+    def settle_dead_star_royalty_event(self, event_id: str, **fields: Any) -> JsonObject:
+        return self.request(
+            "POST",
+            f"/api/company/dead-star/royalty-events/{event_id}/settle",
+            json_body=fields,
+        )
 
     def _url(self, path: str, query: Mapping[str, Any] | None = None) -> str:
         base = self.base_url.rstrip("/")
