@@ -33,6 +33,52 @@ export type RuntimeDaemonHeartbeat = {
   metadata?: JsonObject;
 };
 
+export type CompanyActionEvent = {
+  schema: "hsm.company_os.action_event.v1";
+  grammar?: "operator_stream_v1";
+  id?: string;
+  run_id: string;
+  event_seq: number;
+  event_type: string;
+  phase?: string | null;
+  ts: string;
+  lane?: string | null;
+  backend?: string | null;
+  model?: string | null;
+  tool_name?: string | null;
+  duration_ms?: number | null;
+  error_code?: string | null;
+  fallback_reason?: string | null;
+  payload: JsonObject;
+};
+
+export type AppendCompanyActionEvent = {
+  event_type: string;
+  phase?: string;
+  lane?: string;
+  backend?: string;
+  model?: string;
+  tool_name?: string;
+  duration_ms?: number;
+  error_code?: string;
+  fallback_reason?: string;
+  payload?: JsonObject;
+};
+
+export type CompanyAgentDefinition = {
+  schema: "hsm.company_os.agent_definition.v1";
+  slug: string;
+  name: string;
+  description?: string;
+  work_mode?: string;
+  context_budget?: JsonObject;
+  tools?: Array<{ name: string; required?: boolean; permission?: string; description?: string }>;
+  mcp?: Array<{ name: string; command?: string; url?: string; args?: string[]; env_keys?: string[]; tools?: string[] }>;
+  runtime?: JsonObject;
+  metadata?: JsonObject;
+  instructions_markdown?: string;
+};
+
 export type DeadStarContributorCreate = {
   contributor_name: string;
   role?: string;
@@ -190,6 +236,27 @@ export class CompanyOSClient {
     return this.request("POST", `/api/company/companies/${companyId}/agents`, { body });
   }
 
+  createAgentFromDefinition<T = JsonObject>(
+    companyId: string,
+    definition: CompanyAgentDefinition,
+  ): Promise<T> {
+    return this.createAgent(companyId, {
+      name: definition.name,
+      slug: definition.slug,
+      description: definition.description,
+      instructions_markdown: definition.instructions_markdown,
+      work_mode: definition.work_mode,
+      tool_declarations: definition.tools ?? [],
+      mcp_declarations: definition.mcp ?? [],
+      runtime: definition.runtime ?? {},
+      context_budget: definition.context_budget ?? {},
+      metadata: {
+        schema: definition.schema,
+        ...(definition.metadata ?? {}),
+      },
+    });
+  }
+
   updateAgent<T = JsonObject>(companyId: string, agentId: string, body: Record<string, unknown>): Promise<T> {
     return this.request("PATCH", `/api/company/companies/${companyId}/agents/${agentId}`, { body });
   }
@@ -303,6 +370,66 @@ export class CompanyOSClient {
     return this.request("POST", `/api/company/dead-star/royalty-events/${eventId}/settle`, { body });
   }
 
+  createSnapshot<T = JsonObject>(companyId: string, body: Record<string, unknown>): Promise<T> {
+    return this.request("POST", `/api/company/companies/${companyId}/snapshots`, { body });
+  }
+
+  listSnapshots<T = JsonObject>(companyId: string, query?: Record<string, unknown>): Promise<T> {
+    return this.request("GET", `/api/company/companies/${companyId}/snapshots`, { query });
+  }
+
+  getSnapshot<T = JsonObject>(companyId: string, snapshotId: string): Promise<T> {
+    return this.request("GET", `/api/company/companies/${companyId}/snapshots/${snapshotId}`);
+  }
+
+  replaySnapshot<T = JsonObject>(companyId: string, snapshotId: string): Promise<T> {
+    return this.request("GET", `/api/company/companies/${companyId}/snapshots/${snapshotId}/replay`);
+  }
+
+  optimizeGepa<T = JsonObject>(companyId: string, body: Record<string, unknown>): Promise<T> {
+    return this.request("POST", `/api/company/companies/${companyId}/gepa/optimize`, { body });
+  }
+
+  listPromotionExperiments<T = JsonObject>(companyId: string, query?: Record<string, unknown>): Promise<T> {
+    return this.request("GET", `/api/company/companies/${companyId}/promotion-experiments`, { query });
+  }
+
+  createPromotionExperiment<T = JsonObject>(companyId: string, body: Record<string, unknown>): Promise<T> {
+    return this.request("POST", `/api/company/companies/${companyId}/promotion-experiments`, { body });
+  }
+
+  promotePromotionExperiment<T = JsonObject>(
+    companyId: string,
+    experimentId: string,
+    body: Record<string, unknown>,
+  ): Promise<T> {
+    return this.request("POST", `/api/company/companies/${companyId}/promotion-experiments/${experimentId}/promote`, { body });
+  }
+
+  rollbackPromotionExperiment<T = JsonObject>(
+    companyId: string,
+    experimentId: string,
+    body: Record<string, unknown>,
+  ): Promise<T> {
+    return this.request("POST", `/api/company/companies/${companyId}/promotion-experiments/${experimentId}/rollback`, { body });
+  }
+
+  listRunEvents<T = { run_id: string; events: CompanyActionEvent[]; last_seq?: number | null }>(
+    companyId: string,
+    runId: string,
+    query?: { after_seq?: number; limit?: number },
+  ): Promise<T> {
+    return this.request("GET", `/api/company/companies/${companyId}/agent-runs/${runId}/execution-events`, { query });
+  }
+
+  appendRunEvent<T = CompanyActionEvent>(
+    companyId: string,
+    runId: string,
+    body: AppendCompanyActionEvent,
+  ): Promise<T> {
+    return this.request("POST", `/api/company/companies/${companyId}/agent-runs/${runId}/execution-events`, { body });
+  }
+
   private url(path: string, query?: Record<string, unknown>): string {
     const url = new URL(`${this.baseUrl}/${path.replace(/^\/+/, "")}`);
     for (const [key, value] of Object.entries(query || {})) {
@@ -322,4 +449,110 @@ function env(name: string): string | undefined {
     process?: { env?: Record<string, string | undefined> };
   };
   return maybeProcess.process?.env?.[name];
+}
+
+export function parseAgentDefinitionMarkdown(markdown: string): CompanyAgentDefinition {
+  const match = markdown.match(/^\uFEFF?---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
+  if (!match) throw new Error("agent definition requires YAML frontmatter");
+  const frontmatter = parseSimpleYaml(match[1]);
+  const schema = String(frontmatter.schema || "hsm.company_os.agent_definition.v1");
+  if (schema !== "hsm.company_os.agent_definition.v1") {
+    throw new Error(`unsupported agent definition schema ${schema}`);
+  }
+  const slug = String(frontmatter.slug || "").trim();
+  const name = String(frontmatter.name || "").trim();
+  if (!slug) throw new Error("agent definition slug is required");
+  if (!name) throw new Error("agent definition name is required");
+  return {
+    schema,
+    slug,
+    name,
+    description: asString(frontmatter.description),
+    work_mode: asString(frontmatter.work_mode),
+    context_budget: asObject(frontmatter.context_budget),
+    tools: asArray(frontmatter.tools) as CompanyAgentDefinition["tools"],
+    mcp: asArray(frontmatter.mcp) as CompanyAgentDefinition["mcp"],
+    runtime: asObject(frontmatter.runtime),
+    metadata: asObject(frontmatter.metadata),
+    instructions_markdown: match[2].trim(),
+  };
+}
+
+function parseSimpleYaml(yaml: string): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  const lines = yaml.split(/\r?\n/);
+  let i = 0;
+  while (i < lines.length) {
+    const raw = lines[i];
+    const line = raw.trim();
+    i += 1;
+    if (!line || line.startsWith("#")) continue;
+    const m = line.match(/^([A-Za-z0-9_.-]+):\s*(.*)$/);
+    if (!m) continue;
+    const key = m[1];
+    const value = m[2];
+    if (value) {
+      out[key] = parseYamlScalar(value);
+      continue;
+    }
+    const childLines: string[] = [];
+    while (i < lines.length && /^\s+/.test(lines[i])) {
+      childLines.push(lines[i]);
+      i += 1;
+    }
+    out[key] = parseYamlChildBlock(childLines);
+  }
+  return out;
+}
+
+function parseYamlChildBlock(lines: string[]): unknown {
+  const trimmed = lines.map((l) => l.replace(/^ {2}/, ""));
+  if (trimmed.some((l) => l.trimStart().startsWith("- "))) {
+    const items: Record<string, unknown>[] = [];
+    let current: Record<string, unknown> | null = null;
+    for (const raw of trimmed) {
+      const line = raw.trim();
+      if (!line) continue;
+      if (line.startsWith("- ")) {
+        current = {};
+        items.push(current);
+        const rest = line.slice(2).trim();
+        if (rest) assignYamlPair(current, rest);
+      } else if (current) {
+        assignYamlPair(current, line);
+      }
+    }
+    return items;
+  }
+  const obj: Record<string, unknown> = {};
+  for (const raw of trimmed) assignYamlPair(obj, raw.trim());
+  return obj;
+}
+
+function assignYamlPair(obj: Record<string, unknown>, line: string): void {
+  const m = line.match(/^([A-Za-z0-9_.-]+):\s*(.*)$/);
+  if (m) obj[m[1]] = parseYamlScalar(m[2]);
+}
+
+function parseYamlScalar(value: string): unknown {
+  const v = value.trim();
+  if (v === "true") return true;
+  if (v === "false") return false;
+  if (/^-?\d+$/.test(v)) return Number(v);
+  if (v.startsWith("[") && v.endsWith("]")) {
+    return v.slice(1, -1).split(",").map((s) => String(parseYamlScalar(s.trim())));
+  }
+  return v.replace(/^['"]|['"]$/g, "");
+}
+
+function asString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function asObject(value: unknown): JsonObject | undefined {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as JsonObject) : undefined;
+}
+
+function asArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
 }

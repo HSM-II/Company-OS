@@ -31,6 +31,8 @@ GET /api/company/companies/{company_id}/runtime/daemons
 POST /api/company/companies/{company_id}/runtime/daemons/register
 POST /api/company/companies/{company_id}/runtime/daemons/{device_id}/heartbeat
 POST /api/company/companies/{company_id}/runtime/daemons/{device_id}/deregister
+GET /api/company/companies/{company_id}/agent-runs/{run_id}/execution-events
+POST /api/company/companies/{company_id}/agent-runs/{run_id}/execution-events
 GET /api/company/companies/{company_id}/dead-star/contributors
 POST /api/company/companies/{company_id}/dead-star/contributors
 PATCH /api/company/companies/{company_id}/dead-star/contributors/{contributor_id}

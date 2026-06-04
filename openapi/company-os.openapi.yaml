@@ -24,6 +24,7 @@ tags:
   - name: Agent Chat
   - name: Board
   - name: Runtime Daemons
+  - name: Agent Runs
   - name: Dead Star
   - name: Connectors
 paths:
@@ -816,6 +817,63 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GenericObject"
+  /api/company/companies/{company_id}/agent-runs/{run_id}/execution-events:
+    parameters:
+      - $ref: "#/components/parameters/CompanyId"
+      - $ref: "#/components/parameters/RunId"
+    get:
+      tags: [Agent Runs]
+      summary: List typed action/events for an agent run.
+      operationId: listAgentRunExecutionEvents
+      parameters:
+        - name: after_seq
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 2000
+      responses:
+        "200":
+          description: Monotonic run event stream.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [run_id, events]
+                properties:
+                  run_id:
+                    type: string
+                    format: uuid
+                  last_seq:
+                    type: [integer, "null"]
+                  events:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/CompanyActionEvent"
+    post:
+      tags: [Agent Runs]
+      summary: Append a typed action/event to an agent run.
+      operationId: appendAgentRunExecutionEvent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppendCompanyActionEventRequest"
+      responses:
+        "200":
+          description: Appended run event.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanyActionEvent"
 components:
   securitySchemes:
     bearerAuth:
@@ -870,6 +928,13 @@ components:
       schema:
         type: string
         format: uuid
+    RunId:
+      name: run_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
     IdempotencyKey:
       name: Idempotency-Key
       in: header
@@ -887,6 +952,77 @@ components:
     GenericObject:
       type: object
       additionalProperties: true
+    CompanyActionEvent:
+      type: object
+      additionalProperties: true
+      required: [schema, run_id, event_seq, event_type, ts, payload]
+      properties:
+        schema:
+          type: string
+          enum: [hsm.company_os.action_event.v1]
+        grammar:
+          type: string
+          enum: [operator_stream_v1]
+        id:
+          type: string
+          format: uuid
+        run_id:
+          type: string
+          format: uuid
+        event_seq:
+          type: integer
+          minimum: 1
+        event_type:
+          type: string
+        phase:
+          type: [string, "null"]
+        ts:
+          type: string
+          format: date-time
+        lane:
+          type: [string, "null"]
+        backend:
+          type: [string, "null"]
+        model:
+          type: [string, "null"]
+        tool_name:
+          type: [string, "null"]
+        duration_ms:
+          type: [integer, "null"]
+          minimum: 0
+        error_code:
+          type: [string, "null"]
+        fallback_reason:
+          type: [string, "null"]
+        payload:
+          type: object
+          additionalProperties: true
+    AppendCompanyActionEventRequest:
+      type: object
+      required: [event_type]
+      properties:
+        event_type:
+          type: string
+        phase:
+          type: string
+        lane:
+          type: string
+        backend:
+          type: string
+        model:
+          type: string
+        tool_name:
+          type: string
+        duration_ms:
+          type: integer
+          minimum: 0
+        error_code:
+          type: string
+        fallback_reason:
+          type: string
+        payload:
+          type: object
+          additionalProperties: true
     Error:
       type: object
       required: [error]

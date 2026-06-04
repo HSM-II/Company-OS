@@ -23,6 +23,8 @@ Company OS turns agent work into an operational graph:
 - Human-in-the-loop review queues for approvals, blocked work, and escalations.
 - External tools and product integrations through a stable Company OS API.
 - Dashboards, automations, and agent UIs on top of one public contract.
+- Markdown-defined agents with inline tool/MCP declarations.
+- Typed action/event traces for agent-run inspection and artifact grading.
 
 ## What HSM-II Hosts For You
 
@@ -102,12 +104,27 @@ python ../examples/python_quickstart.py
 ```
 
 ```python
-from company_os_sdk import CompanyOSClient
+from company_os_sdk import CompanyOSClient, parse_agent_definition_markdown
 
 client = CompanyOSClient.from_env()
 company = client.create_company(slug="acme", display_name="Acme")
 task = client.create_task(company["company"]["id"], title="Review launch checklist")
 print(task["task"]["id"])
+
+agent = parse_agent_definition_markdown("""---
+schema: hsm.company_os.agent_definition.v1
+slug: finance-controller
+name: Finance Controller
+tools:
+  - name: company_retrieval_program_run
+mcp:
+  - name: ledger
+    url: http://127.0.0.1:9001/mcp
+---
+# Mission
+Produce evidence-backed finance decisions.
+""")
+client.create_agent_from_definition(company["company"]["id"], agent)
 ```
 
 ## TypeScript
@@ -120,11 +137,25 @@ node ../examples/typescript-quickstart.mjs
 ```
 
 ```ts
-import { CompanyOSClient } from "@hsm-ii/company-os-sdk";
+import { CompanyOSClient, parseAgentDefinitionMarkdown } from "@hsm-ii/company-os-sdk";
 
 const client = CompanyOSClient.fromEnv();
 const health = await client.health();
 console.log(health);
+
+const agent = parseAgentDefinitionMarkdown(`---
+schema: hsm.company_os.agent_definition.v1
+slug: finance-controller
+name: Finance Controller
+tools:
+  - name: company_retrieval_program_run
+mcp:
+  - name: ledger
+    url: http://127.0.0.1:9001/mcp
+---
+# Mission
+Produce evidence-backed finance decisions.
+`);
 ```
 
 ## Product Story
