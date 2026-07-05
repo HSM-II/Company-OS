@@ -1,3 +1,41 @@
 from .client import CompanyOSAPIError, CompanyOSClient, parse_agent_definition_markdown
+from .kit import (
+    A2AAgentCard,
+    Agent,
+    COMPANY_OS_CORE_HOOKS,
+    CompanyOSGraphBuilder,
+    CompanyOSHookBlockedError,
+    CompanyOSHookBus,
+    CompanyOSSessionManager,
+    CompanyOSSessionSnapshot,
+    EvalExperimentGenerator,
+    FileSessionStore,
+    MemorySessionStore,
+    RealtimeVoiceAgent,
+    a2a_agent_card_to_external_adapter,
+    company_os_skill_store_catalog,
+    company_os_tool_catalog,
+    remote_a2a_agent_as_tool,
+)
 
-__all__ = ["CompanyOSAPIError", "CompanyOSClient", "parse_agent_definition_markdown"]
+__all__ = [
+    "A2AAgentCard",
+    "Agent",
+    "COMPANY_OS_CORE_HOOKS",
+    "CompanyOSAPIError",
+    "CompanyOSClient",
+    "CompanyOSGraphBuilder",
+    "CompanyOSHookBlockedError",
+    "CompanyOSHookBus",
+    "CompanyOSSessionManager",
+    "CompanyOSSessionSnapshot",
+    "EvalExperimentGenerator",
+    "FileSessionStore",
+    "MemorySessionStore",
+    "RealtimeVoiceAgent",
+    "a2a_agent_card_to_external_adapter",
+    "company_os_skill_store_catalog",
+    "company_os_tool_catalog",
+    "parse_agent_definition_markdown",
+    "remote_a2a_agent_as_tool",
+]

@@ -25,6 +25,7 @@ Company OS turns agent work into an operational graph:
 - Dashboards, automations, and agent UIs on top of one public contract.
 - Markdown-defined agents with inline tool/MCP declarations.
 - Typed action/event traces for agent-run inspection and artifact grading.
+- Strands-style developer primitives: `Agent(...)`, Company OS hook bus, A2A cards, graph/workflow builders, sessions, realtime voice contracts, eval experiment generation, and installable Tool/Skill Store manifests.
 
 ## What HSM-II Hosts For You
 
@@ -76,6 +77,7 @@ print(reply)
 - [Python SDK](python/): dependency-light client for scripts, notebooks, and backend jobs.
 - [TypeScript SDK](typescript/): client for Node 18+, modern browsers, and app frontends.
 - [Examples](examples/): minimal quickstarts.
+- [Developer Kit](docs/developer-kit.md): public Agent, hook, A2A, graph, session, voice, eval, and tool catalog primitives.
 - [Product deck narrative](docs/product-deck.md): how Company OS works and why it matters.
 - [Demo script](docs/demo-script.md): 20-30 second demo flow for a pitch or walkthrough.
 - [Access model](docs/access-model.md): what is public, what stays private, and how hosted access is controlled.
@@ -127,6 +129,26 @@ Produce evidence-backed finance decisions.
 client.create_agent_from_definition(company["company"]["id"], agent)
 ```
 
+Developer Kit shape:
+
+```python
+from company_os_sdk import Agent, CompanyOSClient, CompanyOSHookBus
+
+client = CompanyOSClient.from_env()
+hooks = CompanyOSHookBus()
+hooks.on("before_tool_call", lambda event: print(event["payload"].get("tool_name")) or None)
+
+agent = Agent(
+    client=client,
+    company_id="company_uuid",
+    agent_ref="operator",
+    tools=["company_memory_search", "company_create_task"],
+    hooks=hooks,
+)
+
+result = agent.run("Create a launch-readiness task with evidence.")
+```
+
 ## TypeScript
 
 ```bash
@@ -157,6 +179,34 @@ mcp:
 Produce evidence-backed finance decisions.
 `);
 ```
+
+Developer Kit shape:
+
+```ts
+import { Agent, CompanyOSClient, CompanyOSGraphBuilder, CompanyOSHookBus } from "@hsm-ii/company-os-sdk";
+
+const client = CompanyOSClient.fromEnv();
+const hooks = new CompanyOSHookBus().on("before_tool_call", (event) => {
+  console.log(event.payload.tool_name);
+});
+
+const agent = new Agent({
+  client,
+  companyId: "company_uuid",
+  agentRef: "operator",
+  tools: ["company_memory_search", "company_create_task"],
+  hooks,
+});
+
+const result = await agent.run("Create a launch-readiness task with evidence.");
+
+const graph = new CompanyOSGraphBuilder("launch")
+  .agent("research", { agentRef: "research-analyst", prompt: "Find risks." })
+  .agent("review", { agentRef: "operator", prompt: "Review risks." })
+  .edge("research", "review");
+```
+
+The hook bus uses the Company OS order: `before_invocation`, `before_model_call`, `after_model_call`, `before_tool_call`, `after_tool_call`, `before_agent_route`, `after_agent_route`, `before_bead_transition`, and `after_bead_transition`. Hook decisions can block, retry, rewrite params, require approval, and attach receipts. Tool/Skill Store manifests include Capability cards, permissions, reputation, install count, health check, and Attach to agent metadata.
 
 ## Product Story
 
