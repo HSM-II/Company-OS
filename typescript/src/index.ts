@@ -414,6 +414,62 @@ export class CompanyOSClient {
     return this.request("POST", `/api/company/companies/${companyId}/promotion-experiments/${experimentId}/rollback`, { body });
   }
 
+  extensionStore<T = JsonObject>(companyId: string, query?: Record<string, unknown>): Promise<T> {
+    return this.request("GET", `/api/company/companies/${companyId}/extensions/store`, { query });
+  }
+
+  extensionInspection<T = JsonObject>(companyId: string, extensionId: string, query?: Record<string, unknown>): Promise<T> {
+    return this.request("GET", `/api/company/companies/${companyId}/extensions/${extensionId}/inspection`, { query });
+  }
+
+  extensionDoctor<T = JsonObject>(companyId: string): Promise<T> {
+    return this.request("GET", `/api/company/companies/${companyId}/extensions/doctor`);
+  }
+
+  extensionRuntime<T = JsonObject>(companyId: string): Promise<T> {
+    return this.request("GET", `/api/company/companies/${companyId}/extensions/runtime`);
+  }
+
+  transitionExtension<T = JsonObject>(
+    companyId: string,
+    extensionId: string,
+    body: { version: string; action: string; expectedGenerationEpoch: number },
+  ): Promise<T> {
+    return this.request("POST", `/api/company/companies/${companyId}/extensions/${extensionId}/lifecycle`, { body });
+  }
+
+  admitExtension<T = JsonObject>(companyId: string, body: Record<string, unknown>): Promise<T> {
+    return this.request("POST", `/api/company/companies/${companyId}/extensions/admissions`, { body });
+  }
+
+  declareExtensionMcp<T = JsonObject>(companyId: string, extensionId: string, body: Record<string, unknown>): Promise<T> {
+    return this.request("POST", `/api/company/companies/${companyId}/extensions/${extensionId}/mcp-declarations`, { body });
+  }
+
+  listExtensionMcp<T = JsonObject>(companyId: string, extensionId: string, query?: Record<string, unknown>): Promise<T> {
+    return this.request("GET", `/api/company/companies/${companyId}/extensions/${extensionId}/mcp-declarations`, { query });
+  }
+
+  declareExtensionContribution<T = JsonObject>(companyId: string, extensionId: string, body: Record<string, unknown>): Promise<T> {
+    return this.request("POST", `/api/company/companies/${companyId}/extensions/${extensionId}/contributions`, { body });
+  }
+
+  linkExtensionDev<T = JsonObject>(companyId: string, extensionId: string, body: Record<string, unknown>): Promise<T> {
+    return this.request("POST", `/api/company/companies/${companyId}/extensions/${extensionId}/dev-links`, { body });
+  }
+
+  reportExtensionCrash<T = JsonObject>(companyId: string, extensionId: string, body: Record<string, unknown>): Promise<T> {
+    return this.request("POST", `/api/company/companies/${companyId}/extensions/${extensionId}/health/crash`, { body });
+  }
+
+  extensionDebug<T = JsonObject>(companyId: string, extensionId: string, query?: Record<string, unknown>): Promise<T> {
+    return this.request("GET", `/api/company/companies/${companyId}/extensions/${extensionId}/debug`, { query });
+  }
+
+  setExtensionSafeMode<T = JsonObject>(companyId: string, body: { enabled: boolean; reason?: string }): Promise<T> {
+    return this.request("POST", `/api/company/companies/${companyId}/extensions/runtime/safe-mode`, { body });
+  }
+
   listRunEvents<T = { run_id: string; events: CompanyActionEvent[]; last_seq?: number | null }>(
     companyId: string,
     runId: string,
@@ -558,3 +614,4 @@ function asArray(value: unknown): unknown[] {
 }
 
 export * from "./kit.js";
+export * from "./extensions.js";

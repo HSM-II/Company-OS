@@ -333,6 +333,88 @@ class CompanyOSClient:
             json_body=fields,
         )
 
+    # Governed Extension Center surfaces. The server owns signature admission,
+    # permissions, trust, rollout, and execution.
+    def extension_store(self, company_id: str, **query: Any) -> JsonObject:
+        return self.request("GET", f"/api/company/companies/{company_id}/extensions/store", query=query)
+
+    def extension_inspection(self, company_id: str, extension_id: str, **query: Any) -> JsonObject:
+        return self.request("GET", f"/api/company/companies/{company_id}/extensions/{extension_id}/inspection", query=query)
+
+    def extension_doctor(self, company_id: str) -> JsonObject:
+        return self.request("GET", f"/api/company/companies/{company_id}/extensions/doctor")
+
+    def extension_runtime(self, company_id: str) -> JsonObject:
+        return self.request("GET", f"/api/company/companies/{company_id}/extensions/runtime")
+
+    def transition_extension(
+        self,
+        company_id: str,
+        extension_id: str,
+        *,
+        version: str,
+        action: str,
+        expected_generation_epoch: int,
+    ) -> JsonObject:
+        return self.request(
+            "POST",
+            f"/api/company/companies/{company_id}/extensions/{extension_id}/lifecycle",
+            json_body={
+                "version": version,
+                "action": action,
+                "expectedGenerationEpoch": expected_generation_epoch,
+            },
+        )
+
+    def admit_extension(
+        self,
+        company_id: str,
+        *,
+        manifest: Mapping[str, Any],
+        artifact_id: str,
+        artifact_digest: str,
+        artifact_size_bytes: int,
+        artifact_media_type: str,
+        mode: str = "stage",
+        expected_current_version: str | None = None,
+        public_listing: bool = False,
+    ) -> JsonObject:
+        return self.request(
+            "POST",
+            f"/api/company/companies/{company_id}/extensions/admissions",
+            json_body={
+                "manifest": dict(manifest),
+                "artifactId": artifact_id,
+                "artifactDigest": artifact_digest,
+                "artifactSizeBytes": artifact_size_bytes,
+                "artifactMediaType": artifact_media_type,
+                "mode": mode,
+                "expectedCurrentVersion": expected_current_version,
+                "publicListing": public_listing,
+            },
+        )
+
+    def declare_extension_mcp(self, company_id: str, extension_id: str, **declaration: Any) -> JsonObject:
+        return self.request("POST", f"/api/company/companies/{company_id}/extensions/{extension_id}/mcp-declarations", json_body=declaration)
+
+    def list_extension_mcp(self, company_id: str, extension_id: str, **query: Any) -> JsonObject:
+        return self.request("GET", f"/api/company/companies/{company_id}/extensions/{extension_id}/mcp-declarations", query=query)
+
+    def declare_extension_contribution(self, company_id: str, extension_id: str, **contribution: Any) -> JsonObject:
+        return self.request("POST", f"/api/company/companies/{company_id}/extensions/{extension_id}/contributions", json_body=contribution)
+
+    def link_extension_dev(self, company_id: str, extension_id: str, **link: Any) -> JsonObject:
+        return self.request("POST", f"/api/company/companies/{company_id}/extensions/{extension_id}/dev-links", json_body=link)
+
+    def report_extension_crash(self, company_id: str, extension_id: str, **report: Any) -> JsonObject:
+        return self.request("POST", f"/api/company/companies/{company_id}/extensions/{extension_id}/health/crash", json_body=report)
+
+    def extension_debug(self, company_id: str, extension_id: str, **query: Any) -> JsonObject:
+        return self.request("GET", f"/api/company/companies/{company_id}/extensions/{extension_id}/debug", query=query)
+
+    def set_extension_safe_mode(self, company_id: str, *, enabled: bool, reason: str | None = None) -> JsonObject:
+        return self.request("POST", f"/api/company/companies/{company_id}/extensions/runtime/safe-mode", json_body={"enabled": enabled, "reason": reason})
+
     def _url(self, path: str, query: Mapping[str, Any] | None = None) -> str:
         base = self.base_url.rstrip("/")
         normalized_path = "/" + path.lstrip("/")
