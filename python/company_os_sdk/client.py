@@ -149,6 +149,41 @@ class CompanyOSClient:
         headers = {"Idempotency-Key": idempotency_key} if idempotency_key else None
         return self.request("POST", f"/api/company/tasks/{task_id}/decision", json_body=body, headers=headers)
 
+    def dispatch_command(
+        self,
+        company_id: str,
+        *,
+        operation: str,
+        args: list[str] | None = None,
+        idempotency_key: str | None = None,
+        approval_id: str | None = None,
+        task_id: str | None = None,
+        run_id: str | None = None,
+    ) -> JsonObject:
+        """Dispatch one governed registry operation through the command plane.
+
+        The server admits the caller, resolves ``operation`` from the command
+        registry, enforces its policy, and returns the immutable command
+        receipt. ``approval_id`` and ``idempotency_key`` are references the
+        ledger verifies, never authority.
+        """
+        body = {k: v for k, v in {
+            "operation": operation,
+            "args": list(args or []),
+            "surface": "sdk",
+            "idempotency_key": idempotency_key,
+            "approval_id": approval_id,
+            "task_id": task_id,
+            "run_id": run_id,
+        }.items() if v is not None}
+        headers = {"Idempotency-Key": idempotency_key} if idempotency_key else None
+        return self.request(
+            "POST",
+            f"/api/company/companies/{company_id}/commands/dispatch",
+            json_body=body,
+            headers=headers,
+        )
+
     def set_task_requires_human(self, task_id: str, requires_human: bool, **fields: Any) -> JsonObject:
         return self.request(
             "POST",

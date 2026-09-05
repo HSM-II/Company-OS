@@ -27,6 +27,7 @@ tags:
   - name: Agent Runs
   - name: Dead Star
   - name: Connectors
+  - name: Commands
 paths:
   /api/company/health:
     get:
@@ -408,6 +409,47 @@ paths:
                     $ref: "#/components/schemas/Task"
                   decision_mode:
                     type: string
+  /api/company/companies/{company_id}/commands/dispatch:
+    parameters:
+      - $ref: "#/components/parameters/CompanyId"
+    post:
+      tags: [Commands]
+      summary: Dispatch one governed registry operation through the Company OS command plane.
+      description: >-
+        The server admits the caller (company_os:tools scope), resolves the
+        operation from the checked-in command registry, enforces its timeout,
+        retry, idempotency, and approval policy through the command ledger,
+        runs the typed implementation, and returns the immutable command
+        receipt. 200 for succeeded or replayed, 409 for a receipted refusal or
+        reconciliation outcome, 502 when the typed command failed or timed out.
+      operationId: dispatchCommand
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommandDispatchRequest"
+      responses:
+        "200":
+          description: The command succeeded or replayed a prior identical execution.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandDispatchResponse"
+        "409":
+          description: The command was refused by policy or requires reconciliation; the receipt explains why.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandDispatchResponse"
+        "502":
+          description: The typed command failed, timed out, or was cancelled; the receipt is recorded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandDispatchResponse"
   /api/company/tasks/{task_id}/requires-human:
     parameters:
       - $ref: "#/components/parameters/TaskId"
@@ -1221,6 +1263,75 @@ components:
           type: string
         reason:
           type: string
+    CommandDispatchRequest:
+      type: object
+      required: [operation]
+      properties:
+        operation:
+          type: string
+          description: Semantic operation id from the command registry, e.g. company_os.pack.validate.
+        args:
+          type: array
+          maxItems: 64
+          items:
+            type: string
+        idempotency_key:
+          type: string
+          description: Caller-stable key; required for keyed operations.
+        approval_id:
+          type: string
+          format: uuid
+          description: Approved company_approval_requests id bound to this exact command input.
+        task_id:
+          type: string
+          format: uuid
+        run_id:
+          type: string
+          format: uuid
+        surface:
+          type: string
+          enum: [api, mcp, sdk, acp, worker, console, cli]
+          description: Provenance label only; never authority.
+    CommandDispatchResponse:
+      type: object
+      required: [schema, companyId, status, executionId, receipt]
+      properties:
+        schema:
+          type: string
+          enum: [hsm.company_os.command_dispatch.v1]
+        companyId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [succeeded, replayed, refused, reconciliation_required, failed, timed_out, cancelled]
+        executionId:
+          type: string
+          format: uuid
+        commandId:
+          type: string
+        commandVersion:
+          type: string
+        exitStatus:
+          type: integer
+          nullable: true
+        stdout:
+          $ref: "#/components/schemas/BoundedText"
+        stderr:
+          $ref: "#/components/schemas/BoundedText"
+        receipt:
+          type: object
+          description: The hsm.company_os.command_execution_receipt.v1 document recorded in the command ledger.
+    BoundedText:
+      type: object
+      required: [text, bytes, truncated]
+      properties:
+        text:
+          type: string
+        bytes:
+          type: integer
+        truncated:
+          type: boolean
     RequiresHumanRequest:
       type: object
       required: [requires_human]

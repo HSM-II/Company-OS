@@ -34,6 +34,7 @@ PY_METHODS = {
     "PATCH /api/company/tasks/{task_id}/state": "update_task_state",
     "POST /api/company/tasks/{task_id}/decision": "decide_task",
     "POST /api/company/tasks/{task_id}/requires-human": "set_task_requires_human",
+    "POST /api/company/companies/{company_id}/commands/dispatch": "dispatch_command",
     "GET /api/company/companies/{company_id}/agents": "list_agents",
     "POST /api/company/companies/{company_id}/agents": "create_agent",
     "PATCH /api/company/companies/{company_id}/agents/{agent_id}": "update_agent",

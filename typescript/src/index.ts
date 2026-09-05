@@ -221,6 +221,32 @@ export class CompanyOSClient {
     return this.request("POST", `/api/company/tasks/${taskId}/decision`, { body, headers });
   }
 
+  /**
+   * Dispatch one governed registry operation through the Company OS command
+   * plane. The server admits the caller, resolves the operation, enforces its
+   * policy, and returns the immutable command receipt. `approval_id` and
+   * `idempotency_key` are references the ledger verifies, never authority.
+   */
+  dispatchCommand<T = JsonObject>(
+    companyId: string,
+    body: {
+      operation: string;
+      args?: string[];
+      idempotency_key?: string;
+      approval_id?: string;
+      task_id?: string;
+      run_id?: string;
+    },
+    idempotencyKey?: string,
+  ): Promise<T> {
+    const key = idempotencyKey ?? body.idempotency_key;
+    const headers = key ? { "Idempotency-Key": key } : undefined;
+    return this.request("POST", `/api/company/companies/${companyId}/commands/dispatch`, {
+      body: { ...body, surface: "sdk" },
+      headers,
+    });
+  }
+
   setTaskRequiresHuman<T = JsonObject>(
     taskId: string,
     body: { requires_human: boolean; actor?: string; reason?: string },

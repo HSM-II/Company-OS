@@ -19,6 +19,7 @@ DELETE /api/company/companies/{company_id}/tasks/{task_id}
 PATCH /api/company/tasks/{task_id}/state
 POST /api/company/tasks/{task_id}/decision
 POST /api/company/tasks/{task_id}/requires-human
+POST /api/company/companies/{company_id}/commands/dispatch
 GET /api/company/tasks/{task_id}/events
 GET /api/company/companies/{company_id}/agents
 POST /api/company/companies/{company_id}/agents
