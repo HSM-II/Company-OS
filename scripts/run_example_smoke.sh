@@ -5,6 +5,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 python3 scripts/check_contract.py
+PYTHONPATH="$ROOT/python" python3 scripts/test_client_defaults.py
 
 python3 scripts/sdk_example_server.py &
 server_pid=$!
@@ -27,4 +28,5 @@ PYTHONPATH="$ROOT/python" python3 examples/python_quickstart.py
 
 npm --prefix typescript install --package-lock=false
 npm --prefix typescript run build
+node --test scripts/client-defaults.test.mjs
 node examples/typescript-quickstart.mjs

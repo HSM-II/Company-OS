@@ -124,7 +124,7 @@ export class CompanyOSClient {
 
   static fromEnv(): CompanyOSClient {
     return new CompanyOSClient({
-      baseUrl: env("HSM_COMPANY_API_URL") || "http://localhost:8765",
+      baseUrl: env("HSM_COMPANY_API_URL") || "http://localhost:3847",
       token: env("HSM_COMPANY_API_TOKEN") || undefined,
     });
   }

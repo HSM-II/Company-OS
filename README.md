@@ -43,6 +43,10 @@ You still build your own app, dashboard, agent UI, or automation on top of the A
 
 ## Quick Demo Flow
 
+Set `HSM_COMPANY_API_URL` to your hosted API endpoint. For a local Company OS
+server, both SDKs default to `http://localhost:3847`; deployments using another
+port, including the former `8765` default, must set that variable explicitly.
+
 ```python
 from company_os_sdk import CompanyOSClient
 

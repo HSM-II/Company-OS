@@ -30,7 +30,7 @@ class CompanyOSClient:
 
     @classmethod
     def from_env(cls) -> "CompanyOSClient":
-        base_url = os.environ.get("HSM_COMPANY_API_URL", "http://localhost:8765")
+        base_url = os.environ.get("HSM_COMPANY_API_URL", "http://localhost:3847")
         token = os.environ.get("HSM_COMPANY_API_TOKEN")
         return cls(base_url=base_url, token=token)
 

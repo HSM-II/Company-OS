@@ -10,7 +10,7 @@ info:
 servers:
   - url: https://api.hsm-ii.example
     description: Hosted Company OS API
-  - url: http://localhost:8765
+  - url: http://localhost:3847
     description: Local hsm_console development server
 security:
   - bearerAuth: []

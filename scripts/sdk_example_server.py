@@ -52,7 +52,7 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self.reply({"error": f"not found: {path}"}, status=404)
 
-    def log_message(self, fmt: str, *args: object) -> None:
+    def log_message(self, format: str, *args: object) -> None:
         return
 
     def read_json(self) -> dict:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import builtins
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -141,7 +142,7 @@ class SessionStore(Protocol):
     def write(self, snapshot: CompanyOSSessionSnapshot) -> None:
         ...
 
-    def list(self) -> list[str]:
+    def list(self) -> builtins.list[str]:
         ...
 
 
@@ -155,7 +156,7 @@ class MemorySessionStore:
     def write(self, snapshot: CompanyOSSessionSnapshot) -> None:
         self._sessions[snapshot.session_id] = snapshot
 
-    def list(self) -> list[str]:
+    def list(self) -> builtins.list[str]:
         return sorted(self._sessions)
 
 
@@ -180,7 +181,7 @@ class FileSessionStore:
     def write(self, snapshot: CompanyOSSessionSnapshot) -> None:
         self._path(snapshot.session_id).write_text(json.dumps(snapshot.to_json(), indent=2), encoding="utf-8")
 
-    def list(self) -> list[str]:
+    def list(self) -> builtins.list[str]:
         return sorted(path.stem for path in self.directory.glob("*.json"))
 
     def _path(self, session_id: str) -> Path:
