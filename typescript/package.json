@@ -1,0 +1,21 @@
+{
+  "name": "@hsm-ii/company-os-sdk",
+  "version": "0.1.0",
+  "description": "TypeScript client for the HSM-II Company OS API",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}
+
