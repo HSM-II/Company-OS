@@ -348,6 +348,15 @@ class CompanyOSClient:
     def optimize_gepa(self, company_id: str, **fields: Any) -> JsonObject:
         return self.request("POST", f"/api/company/companies/{company_id}/gepa/optimize", json_body=fields)
 
+    def optimize(self, company_id: str, optimizer_id: str, request: Mapping[str, Any]) -> JsonObject:
+        """Invoke a provider through the neutral optimization capability contract."""
+        encoded_optimizer = urllib.parse.quote(optimizer_id, safe="")
+        return self.request(
+            "POST",
+            f"/api/company/companies/{company_id}/optimizers/{encoded_optimizer}/optimize",
+            json_body=dict(request),
+        )
+
     def list_promotion_experiments(self, company_id: str, **query: Any) -> JsonObject:
         return self.request("GET", f"/api/company/companies/{company_id}/promotion-experiments", query=query)
 

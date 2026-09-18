@@ -1,3 +1,5 @@
+import type { OptimizeRequest, OptimizeResponse } from "./optimization.js";
+
 export type JsonValue =
   | string
   | number
@@ -416,6 +418,14 @@ export class CompanyOSClient {
     return this.request("POST", `/api/company/companies/${companyId}/gepa/optimize`, { body });
   }
 
+  optimize<T = OptimizeResponse>(companyId: string, optimizerId: string, body: OptimizeRequest): Promise<T> {
+    return this.request(
+      "POST",
+      `/api/company/companies/${companyId}/optimizers/${encodeURIComponent(optimizerId)}/optimize`,
+      { body },
+    );
+  }
+
   listPromotionExperiments<T = JsonObject>(companyId: string, query?: Record<string, unknown>): Promise<T> {
     return this.request("GET", `/api/company/companies/${companyId}/promotion-experiments`, { query });
   }
@@ -641,3 +651,4 @@ function asArray(value: unknown): unknown[] {
 
 export * from "./kit.js";
 export * from "./extensions.js";
+export * from "./optimization.js";
