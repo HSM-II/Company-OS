@@ -169,24 +169,52 @@ class FileSessionStore:
 
     def read(self, session_id: str) -> Optional[CompanyOSSessionSnapshot]:
         path = self._path(session_id)
-        if not path.exists():
-            return None
-        data = json.loads(path.read_text(encoding="utf-8"))
-        return CompanyOSSessionSnapshot(
-            session_id=str(data["sessionId"]),
-            events=list(data.get("events") or []),
-            metadata=dict(data.get("metadata") or {}),
-        )
+        if path.exists():
+            snapshot = self._read_snapshot(path)
+            if snapshot.session_id != session_id:
+                raise ValueError(f"session file {path} contains a different session ID")
+            return snapshot
+
+        # Read files written by older SDK versions, but verify the embedded ID:
+        # legacy sanitization can map multiple IDs to the same filename.
+        legacy_path = self._legacy_path(session_id)
+        if legacy_path.exists():
+            snapshot = self._read_snapshot(legacy_path)
+            return snapshot if snapshot.session_id == session_id else None
+        return None
 
     def write(self, snapshot: CompanyOSSessionSnapshot) -> None:
         self._path(snapshot.session_id).write_text(json.dumps(snapshot.to_json(), indent=2), encoding="utf-8")
 
     def list(self) -> builtins.list[str]:
-        return sorted(path.stem for path in self.directory.glob("*.json"))
+        session_ids: set[str] = set()
+        for path in self.directory.glob("*.json"):
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+                continue
+            session_id = data.get("sessionId") if isinstance(data, dict) else None
+            if isinstance(session_id, str):
+                session_ids.add(session_id)
+        return sorted(session_ids)
 
     def _path(self, session_id: str) -> Path:
+        encoded = session_id.encode("utf-8").hex()
+        return self.directory / f"session-{encoded}.json"
+
+    def _legacy_path(self, session_id: str) -> Path:
         safe = re.sub(r"[^a-zA-Z0-9_.-]+", "_", session_id)
         return self.directory / f"{safe}.json"
+
+    @staticmethod
+    def _read_snapshot(path: Path) -> CompanyOSSessionSnapshot:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        session_id = str(data["sessionId"])
+        return CompanyOSSessionSnapshot(
+            session_id=session_id,
+            events=list(data.get("events") or []),
+            metadata=dict(data.get("metadata") or {}),
+        )
 
 
 class CompanyOSSessionManager:
