@@ -106,6 +106,21 @@ class CompanyOSClient:
     def api_catalog(self, company_id: str) -> JsonObject:
         return self.request("GET", f"/api/company/companies/{company_id}/api-catalog")
 
+    def resolve_context(
+        self,
+        company_id: str,
+        *,
+        task_id: str | None = None,
+        query: str | None = None,
+        phase: str | None = None,
+    ) -> JsonObject:
+        """Resolve authenticated context; task_id takes priority over query."""
+        return self.request(
+            "GET",
+            f"/api/company/companies/{company_id}/context/resolve",
+            query={"task_id": task_id, "query": query, "phase": phase},
+        )
+
     def list_goals(self, company_id: str) -> JsonObject:
         return self.request("GET", f"/api/company/companies/{company_id}/goals")
 

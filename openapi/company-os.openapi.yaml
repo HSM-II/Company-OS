@@ -21,6 +21,7 @@ tags:
   - name: Tasks
   - name: Agents
   - name: Memory
+  - name: Context
   - name: Agent Chat
   - name: Board
   - name: Runtime Daemons
@@ -164,6 +165,41 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GenericObject"
+  /api/company/companies/{company_id}/context/resolve:
+    parameters:
+      - $ref: "#/components/parameters/CompanyId"
+    get:
+      tags: [Context]
+      summary: Resolve policy-budgeted context for an authenticated company principal.
+      description: >
+        The server derives the actor role from the authenticated principal. When both
+        task_id and query are supplied, task_id takes priority. The returned text is
+        already clamped by the effective context policy; max_tokens is a caller-side
+        ceiling, not a second server-side tokenizer.
+      operationId: resolveCompanyContext
+      parameters:
+        - name: task_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: query
+          in: query
+          schema:
+            type: string
+        - name: phase
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Company-scoped context and the policy budget applied to it.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResolvedContext"
+        "403":
+          $ref: "#/components/responses/Error"
   /api/company/companies/{company_id}/export:
     parameters:
       - $ref: "#/components/parameters/CompanyId"
@@ -994,6 +1030,34 @@ components:
     GenericObject:
       type: object
       additionalProperties: true
+    ResolvedContext:
+      type: object
+      required: [company_id, actor_role, phase, task_id, query, policy, text, memory_ids, max_tokens]
+      properties:
+        company_id:
+          type: string
+          format: uuid
+        actor_role:
+          type: string
+        phase:
+          type: string
+        task_id:
+          type: [string, "null"]
+          format: uuid
+        query:
+          type: [string, "null"]
+        policy:
+          type: [object, "null"]
+          additionalProperties: true
+        text:
+          type: string
+        memory_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        max_tokens:
+          type: [integer, "null"]
     CompanyActionEvent:
       type: object
       additionalProperties: true

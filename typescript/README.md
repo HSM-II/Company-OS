@@ -9,9 +9,14 @@ import { CompanyOSClient } from "@hsm-ii/company-os-sdk";
 
 const client = CompanyOSClient.fromEnv();
 console.log(await client.health());
+const context = await client.resolveContext("company-id", { taskId: "task-id", phase: "review" });
+console.log(context.text, context.max_tokens);
 ```
 
 `CompanyOSClient.fromEnv()` reads `HSM_COMPANY_API_URL` and `HSM_COMPANY_API_TOKEN`.
+`resolveContext` also accepts `query` for shared-memory retrieval. The server derives
+the caller's role and applies the context budget; `taskId` takes priority when both
+inputs are supplied.
 
 ### Request deadlines and mutation retries
 

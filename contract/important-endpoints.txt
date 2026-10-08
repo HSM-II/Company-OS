@@ -5,6 +5,7 @@ GET /api/company/companies/{company_id}
 PATCH /api/company/companies/{company_id}
 DELETE /api/company/companies/{company_id}
 GET /api/company/companies/{company_id}/api-catalog
+GET /api/company/companies/{company_id}/context/resolve
 GET /api/company/companies/{company_id}/dashboard
 GET /api/company/companies/{company_id}/export
 GET /api/company/companies/{company_id}/board

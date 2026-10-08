@@ -9,9 +9,14 @@ from company_os_sdk import CompanyOSClient
 
 client = CompanyOSClient("http://localhost:3847", token="dev-token")
 print(client.health())
+context = client.resolve_context("company-id", task_id="task-id", phase="review")
+print(context["text"], context["max_tokens"])
 ```
 
 Set `HSM_COMPANY_API_URL` and `HSM_COMPANY_API_TOKEN` to use `CompanyOSClient.from_env()`.
+`resolve_context` also accepts `query=` for shared-memory retrieval. The server derives
+the caller's role and applies the context budget; `task_id` takes priority when both
+inputs are supplied.
 
 Sensitive company reads and governed mutations require a separate tenant principal
 credential. Configure `HSM_COMPANY_PRINCIPAL_TOKEN` alongside the transport bearer

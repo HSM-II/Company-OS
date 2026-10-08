@@ -10,6 +10,18 @@ export type JsonValue =
 
 export type JsonObject = { [key: string]: JsonValue };
 
+export type ResolvedContext = {
+  company_id: string;
+  actor_role: string;
+  phase: string;
+  task_id: string | null;
+  query: string | null;
+  policy: JsonObject | null;
+  text: string;
+  memory_ids: string[];
+  max_tokens: number | null;
+};
+
 export type RequestOptions = {
   signal?: AbortSignal;
   timeoutMs?: number;
@@ -219,6 +231,16 @@ export class CompanyOSClient {
 
   apiCatalog<T = JsonObject>(companyId: string): Promise<T> {
     return this.request("GET", `/api/company/companies/${companyId}/api-catalog`);
+  }
+
+  /** The server derives the actor role; taskId takes priority over query. */
+  resolveContext<T = ResolvedContext>(
+    companyId: string,
+    options: { taskId?: string; query?: string; phase?: string } = {},
+  ): Promise<T> {
+    return this.request("GET", `/api/company/companies/${companyId}/context/resolve`, {
+      query: { task_id: options.taskId, query: options.query, phase: options.phase },
+    });
   }
 
   listGoals<T = JsonObject>(companyId: string): Promise<T> {

@@ -21,6 +21,7 @@ PY_METHODS = {
     "PATCH /api/company/companies/{company_id}": "update_company",
     "DELETE /api/company/companies/{company_id}": "delete_company",
     "GET /api/company/companies/{company_id}/api-catalog": "api_catalog",
+    "GET /api/company/companies/{company_id}/context/resolve": "resolve_context",
     "GET /api/company/companies/{company_id}/dashboard": "dashboard",
     "GET /api/company/companies/{company_id}/board": "board",
     "GET /api/company/companies/{company_id}/board/columns": "board_columns",
