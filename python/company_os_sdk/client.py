@@ -27,12 +27,13 @@ class CompanyOSClient:
     base_url: str
     token: str | None = None
     timeout: float = 30.0
+    principal_token: str | None = None
 
     @classmethod
     def from_env(cls) -> "CompanyOSClient":
         base_url = os.environ.get("HSM_COMPANY_API_URL", "http://localhost:3847")
         token = os.environ.get("HSM_COMPANY_API_TOKEN")
-        return cls(base_url=base_url, token=token)
+        return cls(base_url=base_url, token=token, principal_token=os.environ.get("HSM_COMPANY_PRINCIPAL_TOKEN"))
 
     def request(
         self,
@@ -48,6 +49,8 @@ class CompanyOSClient:
         req_headers = {"Accept": "application/json"}
         if self.token:
             req_headers["Authorization"] = f"Bearer {self.token}"
+        if self.principal_token:
+            req_headers["x-hsm-principal-token"] = self.principal_token
         if json_body is not None:
             body = json.dumps(json_body).encode("utf-8")
             req_headers["Content-Type"] = "application/json"

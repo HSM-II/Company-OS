@@ -11,6 +11,8 @@ export type JsonValue =
 export type JsonObject = { [key: string]: JsonValue };
 
 export type RequestOptions = {
+  signal?: AbortSignal;
+  timeoutMs?: number;
   query?: Record<string, unknown>;
   body?: unknown;
   headers?: Record<string, string>;
@@ -115,19 +117,31 @@ export class CompanyOSAPIError extends Error {
   }
 }
 
+export class CompanyOSTransportError extends Error {
+  constructor(readonly kind: "timeout" | "cancelled" | "network", readonly cause: unknown) {
+    super(`Company OS transport ${kind}`);
+    this.name = "CompanyOSTransportError";
+  }
+}
+
 export class CompanyOSClient {
   readonly baseUrl: string;
   readonly token?: string;
+  readonly principalToken?: string;
+  readonly timeoutMs: number;
 
-  constructor(options: { baseUrl: string; token?: string }) {
+  constructor(options: { baseUrl: string; token?: string; principalToken?: string; timeoutMs?: number }) {
     this.baseUrl = options.baseUrl.replace(/\/+$/, "");
     this.token = options.token;
+    this.principalToken = options.principalToken;
+    this.timeoutMs = validTimeout(options.timeoutMs ?? 30_000);
   }
 
   static fromEnv(): CompanyOSClient {
     return new CompanyOSClient({
       baseUrl: env("HSM_COMPANY_API_URL") || "http://localhost:3847",
       token: env("HSM_COMPANY_API_TOKEN") || undefined,
+      principalToken: env("HSM_COMPANY_PRINCIPAL_TOKEN") || undefined,
     });
   }
 
@@ -135,23 +149,44 @@ export class CompanyOSClient {
     const url = this.url(path, options.query);
     const headers: Record<string, string> = { Accept: "application/json", ...options.headers };
     if (this.token) headers.Authorization = `Bearer ${this.token}`;
+    if (this.principalToken) headers["x-hsm-principal-token"] = this.principalToken;
     const init: RequestInit = { method, headers };
     if (options.body !== undefined) {
       headers["Content-Type"] = "application/json";
       init.body = JSON.stringify(options.body);
     }
 
-    const res = await fetch(url, init);
-    const contentType = res.headers.get("content-type") || "";
-    const parsed = contentType.includes("application/json") ? await res.json() : await res.text();
-    if (!res.ok) {
-      const message =
-        typeof parsed === "object" && parsed !== null && "error" in parsed
-          ? String((parsed as { error?: unknown }).error)
-          : res.statusText;
-      throw new CompanyOSAPIError(res.status, message, parsed);
+    const timeoutMs = validTimeout(options.timeoutMs ?? this.timeoutMs);
+    const controller = new AbortController();
+    let timedOut = false;
+    const cancel = () => controller.abort(options.signal?.reason);
+    options.signal?.addEventListener("abort", cancel, { once: true });
+    if (options.signal?.aborted) cancel();
+    const timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort(new Error("request deadline exceeded"));
+    }, timeoutMs);
+    init.signal = controller.signal;
+    try {
+      controller.signal.throwIfAborted();
+      const res = await fetch(url, init);
+      const contentType = res.headers.get("content-type") || "";
+      const parsed = contentType.includes("application/json") ? await res.json() : await res.text();
+      if (!res.ok) {
+        const message =
+          typeof parsed === "object" && parsed !== null && "error" in parsed
+            ? String((parsed as { error?: unknown }).error)
+            : res.statusText;
+        throw new CompanyOSAPIError(res.status, message, parsed);
+      }
+      return parsed as T;
+    } catch (error) {
+      if (error instanceof CompanyOSAPIError) throw error;
+      throw new CompanyOSTransportError(timedOut ? "timeout" : options.signal?.aborted ? "cancelled" : "network", error);
+    } finally {
+      clearTimeout(timer);
+      options.signal?.removeEventListener("abort", cancel);
     }
-    return parsed as T;
   }
 
   health<T = JsonObject>(): Promise<T> {
@@ -652,3 +687,10 @@ function asArray(value: unknown): unknown[] {
 export * from "./kit.js";
 export * from "./extensions.js";
 export * from "./optimization.js";
+
+function validTimeout(value: number): number {
+  if (!Number.isSafeInteger(value) || value <= 0 || value > 2_147_483_647) {
+    throw new RangeError("timeoutMs must be a positive integer no greater than 2147483647");
+  }
+  return value;
+}
