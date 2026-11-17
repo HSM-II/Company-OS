@@ -27,12 +27,13 @@ class CompanyOSClient:
     base_url: str
     token: str | None = None
     timeout: float = 30.0
+    principal_token: str | None = None
 
     @classmethod
     def from_env(cls) -> "CompanyOSClient":
-        base_url = os.environ.get("HSM_COMPANY_API_URL", "http://localhost:8765")
+        base_url = os.environ.get("HSM_COMPANY_API_URL", "http://localhost:3847")
         token = os.environ.get("HSM_COMPANY_API_TOKEN")
-        return cls(base_url=base_url, token=token)
+        return cls(base_url=base_url, token=token, principal_token=os.environ.get("HSM_COMPANY_PRINCIPAL_TOKEN"))
 
     def request(
         self,
@@ -48,6 +49,8 @@ class CompanyOSClient:
         req_headers = {"Accept": "application/json"}
         if self.token:
             req_headers["Authorization"] = f"Bearer {self.token}"
+        if self.principal_token:
+            req_headers["x-hsm-principal-token"] = self.principal_token
         if json_body is not None:
             body = json.dumps(json_body).encode("utf-8")
             req_headers["Content-Type"] = "application/json"
@@ -103,6 +106,21 @@ class CompanyOSClient:
     def api_catalog(self, company_id: str) -> JsonObject:
         return self.request("GET", f"/api/company/companies/{company_id}/api-catalog")
 
+    def resolve_context(
+        self,
+        company_id: str,
+        *,
+        task_id: str | None = None,
+        query: str | None = None,
+        phase: str | None = None,
+    ) -> JsonObject:
+        """Resolve authenticated context; task_id takes priority over query."""
+        return self.request(
+            "GET",
+            f"/api/company/companies/{company_id}/context/resolve",
+            query={"task_id": task_id, "query": query, "phase": phase},
+        )
+
     def list_goals(self, company_id: str) -> JsonObject:
         return self.request("GET", f"/api/company/companies/{company_id}/goals")
 
@@ -148,6 +166,41 @@ class CompanyOSClient:
         }.items() if v is not None}
         headers = {"Idempotency-Key": idempotency_key} if idempotency_key else None
         return self.request("POST", f"/api/company/tasks/{task_id}/decision", json_body=body, headers=headers)
+
+    def dispatch_command(
+        self,
+        company_id: str,
+        *,
+        operation: str,
+        args: list[str] | None = None,
+        idempotency_key: str | None = None,
+        approval_id: str | None = None,
+        task_id: str | None = None,
+        run_id: str | None = None,
+    ) -> JsonObject:
+        """Dispatch one governed registry operation through the command plane.
+
+        The server admits the caller, resolves ``operation`` from the command
+        registry, enforces its policy, and returns the immutable command
+        receipt. ``approval_id`` and ``idempotency_key`` are references the
+        ledger verifies, never authority.
+        """
+        body = {k: v for k, v in {
+            "operation": operation,
+            "args": list(args or []),
+            "surface": "sdk",
+            "idempotency_key": idempotency_key,
+            "approval_id": approval_id,
+            "task_id": task_id,
+            "run_id": run_id,
+        }.items() if v is not None}
+        headers = {"Idempotency-Key": idempotency_key} if idempotency_key else None
+        return self.request(
+            "POST",
+            f"/api/company/companies/{company_id}/commands/dispatch",
+            json_body=body,
+            headers=headers,
+        )
 
     def set_task_requires_human(self, task_id: str, requires_human: bool, **fields: Any) -> JsonObject:
         return self.request(
@@ -313,6 +366,15 @@ class CompanyOSClient:
     def optimize_gepa(self, company_id: str, **fields: Any) -> JsonObject:
         return self.request("POST", f"/api/company/companies/{company_id}/gepa/optimize", json_body=fields)
 
+    def optimize(self, company_id: str, optimizer_id: str, request: Mapping[str, Any]) -> JsonObject:
+        """Invoke a provider through the neutral optimization capability contract."""
+        encoded_optimizer = urllib.parse.quote(optimizer_id, safe="")
+        return self.request(
+            "POST",
+            f"/api/company/companies/{company_id}/optimizers/{encoded_optimizer}/optimize",
+            json_body=dict(request),
+        )
+
     def list_promotion_experiments(self, company_id: str, **query: Any) -> JsonObject:
         return self.request("GET", f"/api/company/companies/{company_id}/promotion-experiments", query=query)
 
@@ -332,6 +394,88 @@ class CompanyOSClient:
             f"/api/company/companies/{company_id}/promotion-experiments/{experiment_id}/rollback",
             json_body=fields,
         )
+
+    # Governed Extension Center surfaces. The server owns signature admission,
+    # permissions, trust, rollout, and execution.
+    def extension_store(self, company_id: str, **query: Any) -> JsonObject:
+        return self.request("GET", f"/api/company/companies/{company_id}/extensions/store", query=query)
+
+    def extension_inspection(self, company_id: str, extension_id: str, **query: Any) -> JsonObject:
+        return self.request("GET", f"/api/company/companies/{company_id}/extensions/{extension_id}/inspection", query=query)
+
+    def extension_doctor(self, company_id: str) -> JsonObject:
+        return self.request("GET", f"/api/company/companies/{company_id}/extensions/doctor")
+
+    def extension_runtime(self, company_id: str) -> JsonObject:
+        return self.request("GET", f"/api/company/companies/{company_id}/extensions/runtime")
+
+    def transition_extension(
+        self,
+        company_id: str,
+        extension_id: str,
+        *,
+        version: str,
+        action: str,
+        expected_generation_epoch: int,
+    ) -> JsonObject:
+        return self.request(
+            "POST",
+            f"/api/company/companies/{company_id}/extensions/{extension_id}/lifecycle",
+            json_body={
+                "version": version,
+                "action": action,
+                "expectedGenerationEpoch": expected_generation_epoch,
+            },
+        )
+
+    def admit_extension(
+        self,
+        company_id: str,
+        *,
+        manifest: Mapping[str, Any],
+        artifact_id: str,
+        artifact_digest: str,
+        artifact_size_bytes: int,
+        artifact_media_type: str,
+        mode: str = "stage",
+        expected_current_version: str | None = None,
+        public_listing: bool = False,
+    ) -> JsonObject:
+        return self.request(
+            "POST",
+            f"/api/company/companies/{company_id}/extensions/admissions",
+            json_body={
+                "manifest": dict(manifest),
+                "artifactId": artifact_id,
+                "artifactDigest": artifact_digest,
+                "artifactSizeBytes": artifact_size_bytes,
+                "artifactMediaType": artifact_media_type,
+                "mode": mode,
+                "expectedCurrentVersion": expected_current_version,
+                "publicListing": public_listing,
+            },
+        )
+
+    def declare_extension_mcp(self, company_id: str, extension_id: str, **declaration: Any) -> JsonObject:
+        return self.request("POST", f"/api/company/companies/{company_id}/extensions/{extension_id}/mcp-declarations", json_body=declaration)
+
+    def list_extension_mcp(self, company_id: str, extension_id: str, **query: Any) -> JsonObject:
+        return self.request("GET", f"/api/company/companies/{company_id}/extensions/{extension_id}/mcp-declarations", query=query)
+
+    def declare_extension_contribution(self, company_id: str, extension_id: str, **contribution: Any) -> JsonObject:
+        return self.request("POST", f"/api/company/companies/{company_id}/extensions/{extension_id}/contributions", json_body=contribution)
+
+    def link_extension_dev(self, company_id: str, extension_id: str, **link: Any) -> JsonObject:
+        return self.request("POST", f"/api/company/companies/{company_id}/extensions/{extension_id}/dev-links", json_body=link)
+
+    def report_extension_crash(self, company_id: str, extension_id: str, **report: Any) -> JsonObject:
+        return self.request("POST", f"/api/company/companies/{company_id}/extensions/{extension_id}/health/crash", json_body=report)
+
+    def extension_debug(self, company_id: str, extension_id: str, **query: Any) -> JsonObject:
+        return self.request("GET", f"/api/company/companies/{company_id}/extensions/{extension_id}/debug", query=query)
+
+    def set_extension_safe_mode(self, company_id: str, *, enabled: bool, reason: str | None = None) -> JsonObject:
+        return self.request("POST", f"/api/company/companies/{company_id}/extensions/runtime/safe-mode", json_body={"enabled": enabled, "reason": reason})
 
     def _url(self, path: str, query: Mapping[str, Any] | None = None) -> str:
         base = self.base_url.rstrip("/")

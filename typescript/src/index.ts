@@ -1,3 +1,5 @@
+import type { OptimizeRequest, OptimizeResponse } from "./optimization.js";
+
 export type JsonValue =
   | string
   | number
@@ -8,7 +10,21 @@ export type JsonValue =
 
 export type JsonObject = { [key: string]: JsonValue };
 
+export type ResolvedContext = {
+  company_id: string;
+  actor_role: string;
+  phase: string;
+  task_id: string | null;
+  query: string | null;
+  policy: JsonObject | null;
+  text: string;
+  memory_ids: string[];
+  max_tokens: number | null;
+};
+
 export type RequestOptions = {
+  signal?: AbortSignal;
+  timeoutMs?: number;
   query?: Record<string, unknown>;
   body?: unknown;
   headers?: Record<string, string>;
@@ -113,19 +129,31 @@ export class CompanyOSAPIError extends Error {
   }
 }
 
+export class CompanyOSTransportError extends Error {
+  constructor(readonly kind: "timeout" | "cancelled" | "network", readonly cause: unknown) {
+    super(`Company OS transport ${kind}`);
+    this.name = "CompanyOSTransportError";
+  }
+}
+
 export class CompanyOSClient {
   readonly baseUrl: string;
   readonly token?: string;
+  readonly principalToken?: string;
+  readonly timeoutMs: number;
 
-  constructor(options: { baseUrl: string; token?: string }) {
+  constructor(options: { baseUrl: string; token?: string; principalToken?: string; timeoutMs?: number }) {
     this.baseUrl = options.baseUrl.replace(/\/+$/, "");
     this.token = options.token;
+    this.principalToken = options.principalToken;
+    this.timeoutMs = validTimeout(options.timeoutMs ?? 30_000);
   }
 
   static fromEnv(): CompanyOSClient {
     return new CompanyOSClient({
-      baseUrl: env("HSM_COMPANY_API_URL") || "http://localhost:8765",
+      baseUrl: env("HSM_COMPANY_API_URL") || "http://localhost:3847",
       token: env("HSM_COMPANY_API_TOKEN") || undefined,
+      principalToken: env("HSM_COMPANY_PRINCIPAL_TOKEN") || undefined,
     });
   }
 
@@ -133,23 +161,44 @@ export class CompanyOSClient {
     const url = this.url(path, options.query);
     const headers: Record<string, string> = { Accept: "application/json", ...options.headers };
     if (this.token) headers.Authorization = `Bearer ${this.token}`;
+    if (this.principalToken) headers["x-hsm-principal-token"] = this.principalToken;
     const init: RequestInit = { method, headers };
     if (options.body !== undefined) {
       headers["Content-Type"] = "application/json";
       init.body = JSON.stringify(options.body);
     }
 
-    const res = await fetch(url, init);
-    const contentType = res.headers.get("content-type") || "";
-    const parsed = contentType.includes("application/json") ? await res.json() : await res.text();
-    if (!res.ok) {
-      const message =
-        typeof parsed === "object" && parsed !== null && "error" in parsed
-          ? String((parsed as { error?: unknown }).error)
-          : res.statusText;
-      throw new CompanyOSAPIError(res.status, message, parsed);
+    const timeoutMs = validTimeout(options.timeoutMs ?? this.timeoutMs);
+    const controller = new AbortController();
+    let timedOut = false;
+    const cancel = () => controller.abort(options.signal?.reason);
+    options.signal?.addEventListener("abort", cancel, { once: true });
+    if (options.signal?.aborted) cancel();
+    const timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort(new Error("request deadline exceeded"));
+    }, timeoutMs);
+    init.signal = controller.signal;
+    try {
+      controller.signal.throwIfAborted();
+      const res = await fetch(url, init);
+      const contentType = res.headers.get("content-type") || "";
+      const parsed = contentType.includes("application/json") ? await res.json() : await res.text();
+      if (!res.ok) {
+        const message =
+          typeof parsed === "object" && parsed !== null && "error" in parsed
+            ? String((parsed as { error?: unknown }).error)
+            : res.statusText;
+        throw new CompanyOSAPIError(res.status, message, parsed);
+      }
+      return parsed as T;
+    } catch (error) {
+      if (error instanceof CompanyOSAPIError) throw error;
+      throw new CompanyOSTransportError(timedOut ? "timeout" : options.signal?.aborted ? "cancelled" : "network", error);
+    } finally {
+      clearTimeout(timer);
+      options.signal?.removeEventListener("abort", cancel);
     }
-    return parsed as T;
   }
 
   health<T = JsonObject>(): Promise<T> {
@@ -182,6 +231,16 @@ export class CompanyOSClient {
 
   apiCatalog<T = JsonObject>(companyId: string): Promise<T> {
     return this.request("GET", `/api/company/companies/${companyId}/api-catalog`);
+  }
+
+  /** The server derives the actor role; taskId takes priority over query. */
+  resolveContext<T = ResolvedContext>(
+    companyId: string,
+    options: { taskId?: string; query?: string; phase?: string } = {},
+  ): Promise<T> {
+    return this.request("GET", `/api/company/companies/${companyId}/context/resolve`, {
+      query: { task_id: options.taskId, query: options.query, phase: options.phase },
+    });
   }
 
   listGoals<T = JsonObject>(companyId: string): Promise<T> {
@@ -219,6 +278,32 @@ export class CompanyOSClient {
   ): Promise<T> {
     const headers = idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined;
     return this.request("POST", `/api/company/tasks/${taskId}/decision`, { body, headers });
+  }
+
+  /**
+   * Dispatch one governed registry operation through the Company OS command
+   * plane. The server admits the caller, resolves the operation, enforces its
+   * policy, and returns the immutable command receipt. `approval_id` and
+   * `idempotency_key` are references the ledger verifies, never authority.
+   */
+  dispatchCommand<T = JsonObject>(
+    companyId: string,
+    body: {
+      operation: string;
+      args?: string[];
+      idempotency_key?: string;
+      approval_id?: string;
+      task_id?: string;
+      run_id?: string;
+    },
+    idempotencyKey?: string,
+  ): Promise<T> {
+    const key = idempotencyKey ?? body.idempotency_key;
+    const headers = key ? { "Idempotency-Key": key } : undefined;
+    return this.request("POST", `/api/company/companies/${companyId}/commands/dispatch`, {
+      body: { ...body, surface: "sdk" },
+      headers,
+    });
   }
 
   setTaskRequiresHuman<T = JsonObject>(
@@ -390,6 +475,14 @@ export class CompanyOSClient {
     return this.request("POST", `/api/company/companies/${companyId}/gepa/optimize`, { body });
   }
 
+  optimize<T = OptimizeResponse>(companyId: string, optimizerId: string, body: OptimizeRequest): Promise<T> {
+    return this.request(
+      "POST",
+      `/api/company/companies/${companyId}/optimizers/${encodeURIComponent(optimizerId)}/optimize`,
+      { body },
+    );
+  }
+
   listPromotionExperiments<T = JsonObject>(companyId: string, query?: Record<string, unknown>): Promise<T> {
     return this.request("GET", `/api/company/companies/${companyId}/promotion-experiments`, { query });
   }
@@ -412,6 +505,62 @@ export class CompanyOSClient {
     body: Record<string, unknown>,
   ): Promise<T> {
     return this.request("POST", `/api/company/companies/${companyId}/promotion-experiments/${experimentId}/rollback`, { body });
+  }
+
+  extensionStore<T = JsonObject>(companyId: string, query?: Record<string, unknown>): Promise<T> {
+    return this.request("GET", `/api/company/companies/${companyId}/extensions/store`, { query });
+  }
+
+  extensionInspection<T = JsonObject>(companyId: string, extensionId: string, query?: Record<string, unknown>): Promise<T> {
+    return this.request("GET", `/api/company/companies/${companyId}/extensions/${extensionId}/inspection`, { query });
+  }
+
+  extensionDoctor<T = JsonObject>(companyId: string): Promise<T> {
+    return this.request("GET", `/api/company/companies/${companyId}/extensions/doctor`);
+  }
+
+  extensionRuntime<T = JsonObject>(companyId: string): Promise<T> {
+    return this.request("GET", `/api/company/companies/${companyId}/extensions/runtime`);
+  }
+
+  transitionExtension<T = JsonObject>(
+    companyId: string,
+    extensionId: string,
+    body: { version: string; action: string; expectedGenerationEpoch: number },
+  ): Promise<T> {
+    return this.request("POST", `/api/company/companies/${companyId}/extensions/${extensionId}/lifecycle`, { body });
+  }
+
+  admitExtension<T = JsonObject>(companyId: string, body: Record<string, unknown>): Promise<T> {
+    return this.request("POST", `/api/company/companies/${companyId}/extensions/admissions`, { body });
+  }
+
+  declareExtensionMcp<T = JsonObject>(companyId: string, extensionId: string, body: Record<string, unknown>): Promise<T> {
+    return this.request("POST", `/api/company/companies/${companyId}/extensions/${extensionId}/mcp-declarations`, { body });
+  }
+
+  listExtensionMcp<T = JsonObject>(companyId: string, extensionId: string, query?: Record<string, unknown>): Promise<T> {
+    return this.request("GET", `/api/company/companies/${companyId}/extensions/${extensionId}/mcp-declarations`, { query });
+  }
+
+  declareExtensionContribution<T = JsonObject>(companyId: string, extensionId: string, body: Record<string, unknown>): Promise<T> {
+    return this.request("POST", `/api/company/companies/${companyId}/extensions/${extensionId}/contributions`, { body });
+  }
+
+  linkExtensionDev<T = JsonObject>(companyId: string, extensionId: string, body: Record<string, unknown>): Promise<T> {
+    return this.request("POST", `/api/company/companies/${companyId}/extensions/${extensionId}/dev-links`, { body });
+  }
+
+  reportExtensionCrash<T = JsonObject>(companyId: string, extensionId: string, body: Record<string, unknown>): Promise<T> {
+    return this.request("POST", `/api/company/companies/${companyId}/extensions/${extensionId}/health/crash`, { body });
+  }
+
+  extensionDebug<T = JsonObject>(companyId: string, extensionId: string, query?: Record<string, unknown>): Promise<T> {
+    return this.request("GET", `/api/company/companies/${companyId}/extensions/${extensionId}/debug`, { query });
+  }
+
+  setExtensionSafeMode<T = JsonObject>(companyId: string, body: { enabled: boolean; reason?: string }): Promise<T> {
+    return this.request("POST", `/api/company/companies/${companyId}/extensions/runtime/safe-mode`, { body });
   }
 
   listRunEvents<T = { run_id: string; events: CompanyActionEvent[]; last_seq?: number | null }>(
@@ -558,3 +707,12 @@ function asArray(value: unknown): unknown[] {
 }
 
 export * from "./kit.js";
+export * from "./extensions.js";
+export * from "./optimization.js";
+
+function validTimeout(value: number): number {
+  if (!Number.isSafeInteger(value) || value <= 0 || value > 2_147_483_647) {
+    throw new RangeError("timeoutMs must be a positive integer no greater than 2147483647");
+  }
+  return value;
+}

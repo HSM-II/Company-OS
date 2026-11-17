@@ -258,55 +258,40 @@ export class Agent {
     );
 
     let normalized: CompanyOSObject | undefined;
-    let attempt = 1;
-    let maxAttempts = 1;
-    while (attempt <= maxAttempts) {
-      try {
-        const response = await this.client.agentChat(this.companyId, {
-          message: String(toolParams.message ?? runParams.input ?? input),
-          actor: String(toolParams.actor ?? runParams.actor ?? this.actor),
-          thread_id: valueAsString(toolParams.thread_id ?? runParams.thread_id),
-          metadata: {
-            schema: "hsm.company_os.sdk_agent_run.v1",
-            agent_ref: this.agentRef,
-            model: this.model ?? null,
-            tools: this.tools,
-            hook_receipts: receipts as unknown as CompanyOSJson,
-            ...(options.metadata ?? {}),
-          },
-        });
-        normalized = asObject(response);
-        const afterTool = await this.emitAndRecord(
-          this.event(
-            "after_tool_call",
-            { tool_name: "company_agent_chat", response: normalized },
-            options,
-            runId,
-            toolParams,
-            attempt,
-          ),
-          receipts,
-        );
-        if (afterTool.retry && attempt < afterTool.retry.maxAttempts) {
-          maxAttempts = Math.max(maxAttempts, afterTool.retry.maxAttempts);
-          await delay(afterTool.retry.delayMs);
-          attempt += 1;
-          continue;
-        }
-        break;
-      } catch (error) {
-        const retry = await this.emitAndRecord(
-          this.event("retry", { error: errorToPayload(error), attempt }, options, runId, toolParams, attempt),
-          receipts,
-        );
-        if (retry.retry && attempt < retry.retry.maxAttempts) {
-          maxAttempts = Math.max(maxAttempts, retry.retry.maxAttempts);
-          await delay(retry.retry.delayMs);
-          attempt += 1;
-          continue;
-        }
-        throw error;
-      }
+    const attempt = 1;
+    // agentChat has no server-enforced replay contract: one mutation per run.
+    try {
+      const response = await this.client.agentChat(this.companyId, {
+        message: String(toolParams.message ?? runParams.input ?? input),
+        actor: String(toolParams.actor ?? runParams.actor ?? this.actor),
+        thread_id: valueAsString(toolParams.thread_id ?? runParams.thread_id),
+        metadata: {
+          schema: "hsm.company_os.sdk_agent_run.v1",
+          agent_ref: this.agentRef,
+          model: this.model ?? null,
+          tools: this.tools,
+          hook_receipts: receipts as unknown as CompanyOSJson,
+          ...(options.metadata ?? {}),
+        },
+      });
+      normalized = asObject(response);
+      await this.emitAndRecord(
+        this.event(
+          "after_tool_call",
+          { tool_name: "company_agent_chat", response: normalized },
+          options,
+          runId,
+          toolParams,
+          attempt,
+        ),
+        receipts,
+      );
+    } catch (error) {
+      await this.emitAndRecord(
+        this.event("retry", { error: errorToPayload(error), attempt }, options, runId, toolParams, attempt),
+        receipts,
+      );
+      throw error;
     }
 
     const response = normalized ?? {};
@@ -1003,9 +988,4 @@ function slugify(value: string): string {
 function errorToPayload(error: unknown): CompanyOSObject {
   if (error instanceof Error) return { name: error.name, message: error.message };
   return { message: String(error) };
-}
-
-async function delay(delayMs: number): Promise<void> {
-  if (delayMs <= 0) return;
-  await new Promise((resolve) => setTimeout(resolve, delayMs));
 }

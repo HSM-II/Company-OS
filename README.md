@@ -43,6 +43,10 @@ You still build your own app, dashboard, agent UI, or automation on top of the A
 
 ## Quick Demo Flow
 
+Set `HSM_COMPANY_API_URL` to your hosted API endpoint. For a local Company OS
+server, both SDKs default to `http://localhost:3847`; deployments using another
+port, including the former `8765` default, must set that variable explicitly.
+
 ```python
 from company_os_sdk import CompanyOSClient
 
@@ -77,6 +81,13 @@ print(reply)
 - [Python SDK](python/): dependency-light client for scripts, notebooks, and backend jobs.
 - [TypeScript SDK](typescript/): client for Node 18+, modern browsers, and app frontends.
 - [Examples](examples/): minimal quickstarts.
+
+To supply an existing external harness with the server's bounded task context,
+then inspect an existing governed run's receipt story, run
+`examples/python_context_and_story.py --company-id UUID --task-id UUID --run-id UUID`
+with `HSM_COMPANY_API_URL` and `HSM_COMPANY_API_TOKEN` set. Omit `--run-id`
+before a run exists. The example makes only read requests; the harness must use
+its existing governed execution boundary to create the run.
 - [Developer Kit](docs/developer-kit.md): public Agent, hook, A2A, graph, session, voice, eval, and tool catalog primitives.
 - [Product deck narrative](docs/product-deck.md): how Company OS works and why it matters.
 - [Demo script](docs/demo-script.md): 20-30 second demo flow for a pitch or walkthrough.
